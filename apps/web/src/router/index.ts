@@ -13,12 +13,15 @@ import FeedPage from "../page/FeedPage.vue";
 import ProfilePage from "../page/ProfilePage.vue";
 import ChallengesPage from "../page/ChallengesPage.vue";
 
+import { installAuthGuards } from "./guard.ts";
+
 const routes: RouteRecordRaw[] = [
     { path: "/", redirect: "/auth/login" },
 
     {
         path: "/auth",
         component: AuthLayout,
+        meta: { guestOnly: true },
         children: [
             { path: "login", name: "login", component: AuthLoginPage },
             { path: "mediaschool-login", name: "mediaschool-login", component: MediaSchoolLoginPage },
@@ -29,23 +32,29 @@ const routes: RouteRecordRaw[] = [
     },
 
     { path: "/profile", redirect: "/app/profile" },
+    { path: "/feed", redirect: "/app/feed" },
     { path: "/challenges", redirect: "/app/challenges" },
 
     {
         path: "/app",
         component: AppLayout,
+        meta: { requiresAuth: true },
         children: [
-            { path: "", redirect: "/feed" },
-
-            { path: "profile", name: "profile", component: ProfilePage },
+            { path: "feed", name: "feed", component: FeedPage },
+            { path: "", redirect: "/app/challenges" },
             { path: "challenges", name: "challenges", component: ChallengesPage },
+            { path: "profile", name: "profile", component: ProfilePage },
         ],
     },
 
-    { path: "/feed", name: "feed", component: FeedPage },
+    { path: "/:pathMatch(.*)*", redirect: "/auth/login" },
 ];
 
-export default createRouter({
+const router = createRouter({
     history: createWebHistory(),
     routes,
 });
+
+installAuthGuards(router);
+
+export default router;

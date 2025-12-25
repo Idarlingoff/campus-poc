@@ -23,7 +23,7 @@ const emit = defineEmits<{
     </AuthRoleOptionCard>
 
     <AuthRoleOptionCard
-        title="Membre Extérieur"
+        title="Invité"
         description="Accès à la carte et l'activité"
         :selected="modelValue === 'external'"
         @select="emit('update:modelValue', 'external'); emit('select', 'external')"

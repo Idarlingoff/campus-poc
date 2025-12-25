@@ -1,22 +1,43 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
+const auth = useAuthStore();
 
 const email = ref("");
 const password = ref("");
 const error = ref<string | null>(null);
 
-function submit() {
+function isMediaSchoolEmail(e: string) {
+  const v = e.toLowerCase().trim();
+  return v.endsWith("@mediaschool.me") || v.endsWith("@mediaschool.eu");
+}
+
+async function submit() {
   error.value = null;
 
-  if (!email.value || !password.value) {
+  const e = email.value.trim();
+  const p = password.value;
+
+  if (!e || !p) {
     error.value = "Veuillez renseigner l'email et le mot de passe.";
     return;
   }
 
-  router.push("/feed");
+  if (!isMediaSchoolEmail(e)) {
+    error.value = "Veuillez utiliser un email MediaSchool (@mediaschool.me ou @mediaschool.eu).";
+    return;
+  }
+
+  try {
+    await auth.login({ email: e, password: p });
+
+    router.replace("/app/feed"); // ou /app/feed selon ton routing
+  } catch (err: any) {
+    error.value = auth.error ?? "Identifiants invalides.";
+  }
 }
 
 function goRegister() {
@@ -31,7 +52,7 @@ function goRegister() {
 
     <label class="field">
       <span>Email</span>
-      <input v-model="email" type="email" placeholder="prenom.nom@..." />
+      <input v-model="email" type="email" placeholder="prenom.nom@mediaschool.me" />
     </label>
 
     <label class="field">
@@ -41,7 +62,9 @@ function goRegister() {
 
     <p v-if="error" class="error">{{ error }}</p>
 
-    <button class="primary" type="button" @click="submit">Se connecter</button>
+    <button class="primary" type="button" :disabled="auth.loading" @click="submit">
+      {{ auth.loading ? "Connexion..." : "Se connecter" }}
+    </button>
 
     <button class="link" type="button" @click="goRegister">
       Créer un compte
@@ -82,6 +105,10 @@ h2{ margin: 0 0 6px; }
   color: white;
   font-weight: 800;
   margin-top: 10px;
+}
+.primary:disabled{
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .link{

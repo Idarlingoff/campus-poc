@@ -58,3 +58,11 @@ export async function verifyPassword(user: DbUser, password: string): Promise<bo
     if (!user.password_hash) return false;
     return bcrypt.compare(password, user.password_hash);
 }
+
+export function roleFromEmail(email: string): "student" | "staff" | "external" {
+    const e = email.toLowerCase().trim();
+
+    if (e.endsWith("@mediaschool.me")) return "student";
+    if (e.endsWith("@mediaschool.eu")) return "staff";
+    return "external";
+}

@@ -5,6 +5,8 @@ import { authRouter } from "./auth/auth.routes";
 import { meRouter } from "./me/me.routes";
 import { authJwt } from "./auth/auth.middleware";
 import { requirePerm } from "./auth/requirePerm";
+import { adminRouter } from "./admin/admin.routes";
+import { challengesRouter } from "./challenges/challenges.routes";
 
 const app = express();
 
@@ -15,6 +17,10 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRouter);
 app.use("/me", meRouter);
+
+app.use("/admin", adminRouter);
+
+app.use("/challenges", challengesRouter);
 
 app.get("/debug/permissions", authJwt, requirePerm("publications:read"), (req, res) => {
     res.json({ ok: true, message: "You can read publications" });

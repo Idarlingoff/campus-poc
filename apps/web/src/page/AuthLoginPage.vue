@@ -6,7 +6,9 @@ import BrandMark from "../components/auth/BrandMark.vue";
 import LanguageQuickSwitch from "../components/auth/LanguageQuickSwitch.vue";
 import AuthRolePicker, { type AuthRole } from "../components/auth/AuthRolePicker.vue";
 import TermsNotice from "../components/auth/TermsNotice.vue";
+import { useAuthStore } from "@/stores/auth";
 
+const auth = useAuthStore();
 const router = useRouter();
 
 const lang = ref<"fr" | "en" | "es">("fr");
@@ -17,9 +19,11 @@ function onSelectRole(r: AuthRole) {
 
   if (r === "mediaschool") {
     router.push("/auth/mediaschool-login");
-  } else {
-    router.push("/feed");
+    return;
   }
+
+  auth.enterAsGuest();
+  router.push("/feed");
 }
 
 function goTerms() {

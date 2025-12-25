@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { createUser, findUserByEmail, verifyPassword } from "./auth.service";
+import {createUser, findUserByEmail, roleFromEmail, verifyPassword} from "./auth.service";
 import { signAccessToken } from "./jwt";
 
 export const authRouter = Router();
@@ -9,19 +9,22 @@ const RegisterSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
     displayName: z.string().min(2),
-    role: z.enum(["student", "external"]).default("external"), // ajuste si besoin
 });
 
 authRouter.post("/register", async (req, res) => {
     const parsed = RegisterSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ message: "Invalid body", errors: parsed.error.flatten() });
+    if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid body", errors: parsed.error.flatten() });
+    }
 
-    const { email, password, displayName, role } = parsed.data;
+    const { email, password, displayName } = parsed.data;
 
     const existing = await findUserByEmail(email);
     if (existing) return res.status(409).json({ message: "Email already used" });
 
-    const user = await createUser({ email, password, displayName, roleCode: role });
+    const roleCode = roleFromEmail(email);
+
+    const user = await createUser({ email, password, displayName, roleCode });
     const accessToken = signAccessToken(user.id);
 
     return res.status(201).json({

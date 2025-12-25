@@ -1,0 +1,3 @@
+migrations_dir = "apps/api/db/migrations"
+schema_file = "apps/api/db/schema.sql"
+

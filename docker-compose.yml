@@ -10,6 +10,7 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - dbdata:/var/lib/postgresql/data
+      - ./uploads:/app/uploads
 
   api:
     image: node:25-alpine

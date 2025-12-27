@@ -11,6 +11,7 @@ import TermsPage from "../page/TermsPage.vue";
 
 import FeedPage from "../page/FeedPage.vue";
 import ProfilePage from "../page/ProfilePage.vue";
+import ProfileEditPage from "../page/ProfileEditPage.vue"
 import ChallengesPage from "../page/ChallengesPage.vue";
 import ProposeChallengePage from "../page/ProposeChallengePage.vue";
 import ChallengeModerationPage from "../page/ChallengeModerationPage.vue";
@@ -50,6 +51,7 @@ const routes: RouteRecordRaw[] = [
             { path: "challenges", name: "challenges", component: ChallengesPage },
             { path: "challenges/:id", name: "challenge-detail", component: ChallengeDetailPage },
             { path: "profile", name: "profile", component: ProfilePage },
+            { path: "profile/edit", name: "profile-edit", component: ProfileEditPage }
         ],
     },
 

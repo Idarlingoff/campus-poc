@@ -25,30 +25,58 @@ import ContactInfoCard from "../components/profile/ContactInfoCard.vue";
 import ContactLine from "../components/profile/ContactLine.vue";
 import EmptyState from "@/components/ui/EmptyState.vue";
 
+type LastNameVisibility = "FULL" | "INITIAL" | "HIDDEN";
+type ProfileVisibility = "CAMPUS" | "PRIVATE";
+
 type ProfileMeResponse = {
   identity: {
     id: string;
     email: string;
+
     displayName: string;
+
+    firstName: string;
+    lastName: string;
+    lastNameVisibility: LastNameVisibility;
+
     bio: string;
     city: string;
     schoolLine: string;
     sinceDate?: string | null;
+
     avatarText: string;
+    avatarUrl?: string | null;
+
+    birthDate?: string | null;
+    age?: number | null;
+
+    showEmail: boolean;
+    showBirthDate: boolean;
+    showAge: boolean;
+
+    profileVisibility: ProfileVisibility;
+
+    socials?: {
+      show: boolean;
+      instagramHandle: string;
+      linkedinUrl: string;
+      websiteUrl: string;
+    };
+
     roles?: string[];
   };
-  stats: {
+  stats?: {
     pointsTotal: number;
     challengesDone: number;
     ranking: number | null;
   };
-  progression: {
+  progression?: {
     current: number;
     max: number;
     hint: string;
   };
-  badges: Array<{ title: string; description: string; icon: string; unlocked: boolean }>;
-  recentActivity: Array<{ icon: string; title: string; meta: string; points?: number; createdAt: string }>;
+  badges?: Array<{ title: string; description: string; icon: string; unlocked: boolean }>;
+  recentActivity?: Array<{ icon: string; title: string; meta: string; points?: number; createdAt: string }>;
 };
 
 const auth = useAuthStore();
@@ -63,7 +91,6 @@ const profile = ref<ProfileMeResponse | null>(null);
 function goLogin() {
   router.push({ name: "login" });
 }
-
 function logout() {
   auth.logout();
   router.replace({ name: "login" });
@@ -76,11 +103,8 @@ async function fetchProfile() {
   error.value = null;
 
   try {
-    profile.value = await apiRequest<ProfileMeResponse>("/profile/me", {
-      token: auth.token,
-    });
+    profile.value = await apiRequest<ProfileMeResponse>("/profile/me", { token: auth.token });
   } catch (e: any) {
-    // Si token invalide/expiré => logout
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       auth.logout();
       router.replace({ name: "login" });
@@ -93,23 +117,16 @@ async function fetchProfile() {
 }
 
 onMounted(async () => {
-  // invité => pas d’appel API
   if (isGuest.value) return;
 
-  // si connecté mais me pas encore chargé (edge case), bootstrap
   if (auth.token && !auth.me && !auth.loading) {
     await auth.bootstrap();
   }
-
-  // si après bootstrap on n'est pas authentifié => login
   if (!auth.isAuthenticated) return;
 
   await fetchProfile();
 });
 
-/**
- * Helpers
- */
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "🙂";
@@ -118,27 +135,43 @@ function initials(name: string) {
   return (a + b).toUpperCase() || "🙂";
 }
 
-/**
- * Bindings vers l'API
- */
-const displayName = computed(() => profile.value?.identity.displayName ?? auth.me?.displayName ?? "");
-const email = computed(() => profile.value?.identity.email ?? auth.me?.email ?? "");
+const identity = computed(() => profile.value?.identity);
 
-const schoolLine = computed(() => profile.value?.identity.schoolLine ?? "");
-const bio = computed(() => profile.value?.identity.bio ?? "");
-const city = computed(() => profile.value?.identity.city ?? "");
-const since = computed(() => {
-  const d = profile.value?.identity.sinceDate;
-  if (!d) return "";
-  // format simple AAAA-MM -> tu pourras formatter mieux plus tard
-  return d;
+const displayName = computed(() => identity.value?.displayName ?? auth.me?.displayName ?? "");
+
+const publicName = computed(() => {
+  const i = identity.value;
+  if (!i) return displayName.value;
+
+  const fn = (i.firstName ?? "").trim();
+  const ln = (i.lastName ?? "").trim();
+
+  if (!fn && !ln) return displayName.value;
+
+  if (i.lastNameVisibility === "HIDDEN") return fn || displayName.value;
+  if (i.lastNameVisibility === "INITIAL") return ln.length > 0 ? `${fn} ${ln[0]!.toUpperCase()}.` : (fn || displayName.value);
+  return `${fn} ${ln}`.trim();
 });
 
 const avatarText = computed(() => {
-  const apiAvatar = profile.value?.identity.avatarText?.trim();
-  if (apiAvatar) return apiAvatar;
-  return initials(displayName.value);
+  const i = identity.value;
+  const txt = i?.avatarText?.trim();
+  if (txt) return txt;
+  return initials(publicName.value);
 });
+
+const avatarUrl = computed(() => identity.value?.avatarUrl ?? null);
+
+const schoolLine = computed(() => identity.value?.schoolLine ?? "");
+const bio = computed(() => identity.value?.bio ?? "");
+const city = computed(() => identity.value?.city ?? "");
+const since = computed(() => identity.value?.sinceDate ?? "");
+
+const showEmail = computed(() => !!identity.value?.showEmail);
+const email = computed(() => identity.value?.email ?? auth.me?.email ?? "");
+
+const showAge = computed(() => !!identity.value?.showAge);
+const age = computed(() => identity.value?.age ?? null);
 
 const stats = computed(() => {
   const s = profile.value?.stats;
@@ -150,9 +183,10 @@ const stats = computed(() => {
   ];
 });
 
-const progressionCurrent = computed(() => profile.value?.progression.current ?? 0);
-const progressionMax = computed(() => profile.value?.progression.max ?? 1000);
-const progressHint = computed(() => profile.value?.progression.hint ?? "");
+/** ✅ FIX ICI : progression peut être undefined */
+const progressionCurrent = computed(() => profile.value?.progression?.current ?? 0);
+const progressionMax = computed(() => profile.value?.progression?.max ?? 1000);
+const progressHint = computed(() => profile.value?.progression?.hint ?? "");
 
 const badges = computed<Badge[]>(() =>
     (profile.value?.badges ?? []).map((b) => ({
@@ -164,9 +198,9 @@ const badges = computed<Badge[]>(() =>
 );
 
 const badgeCountLabel = computed(() => {
-  const all = badges.value.length;
+  const allCount = badges.value.length;
   const unlocked = badges.value.filter((b) => b.unlocked).length;
-  return `${unlocked}/${all}`;
+  return `${unlocked}/${allCount}`;
 });
 
 const activity = computed<ActivityItem[]>(() =>
@@ -178,9 +212,20 @@ const activity = computed<ActivityItem[]>(() =>
     }))
 );
 
-/**
- * Actions
- */
+function formatFrMonthYear(iso: string | null | undefined) {
+
+  if (!iso) return "";
+  const s = String(iso);
+
+  const yyyyMm = s.slice(0, 7);
+  const [y, m] = yyyyMm.split("-");
+  if (!y || !m) return yyyyMm;
+
+  const date = new Date(Number(y), Number(m) - 1, 1);
+  const out = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(date);
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
 function goSettings() {
   router.push("/app/settings");
 }
@@ -188,8 +233,7 @@ function goShare() {
   router.push("/app/share");
 }
 function editProfile() {
-  // TODO: /app/profile/edit
-  console.log("edit profile");
+  router.push({ name: "profile-edit" });
 }
 </script>
 
@@ -205,9 +249,7 @@ function editProfile() {
 
   <!-- connecté -->
   <template v-else>
-    <div v-if="loading" class="loading">
-      Chargement du profil...
-    </div>
+    <div v-if="loading" class="loading">Chargement du profil...</div>
 
     <div v-else-if="error" class="error-box">
       <div class="err-title">Impossible de charger le profil</div>
@@ -215,38 +257,31 @@ function editProfile() {
       <button class="retry" type="button" @click="fetchProfile">Réessayer</button>
     </div>
 
-    <template v-else>
+    <!-- ✅ FIX : on ne rend le profil que si profile != null -->
+    <template v-else-if="profile">
       <ProfileHeroCard :showEdit="true" @edit="editProfile">
         <ProfileIdentity
-            :name="displayName"
+            :name="publicName"
             :schoolLine="schoolLine"
             :bio="bio"
-            :city="city"
-            :since="since"
+            :city="showAge && age ? `${city} · ${age} ans` : city"
+            :since="formatFrMonthYear(since)"
             :avatarText="avatarText"
+            :avatarUrl="avatarUrl"
         />
         <ProfileStatsRow :stats="stats" />
       </ProfileHeroCard>
 
       <ProfileProgressCard rightLabel=" ">
-        <LevelProgressBar
-            :current="progressionCurrent"
-            :max="progressionMax"
-            :hint="progressHint"
-        />
+        <LevelProgressBar :current="progressionCurrent" :max="progressionMax" :hint="progressHint" />
       </ProfileProgressCard>
 
       <BadgesCard :countLabel="badgeCountLabel">
         <template v-if="badges.length > 0">
           <BadgeGrid :badges="badges" />
         </template>
-
         <template v-else>
-          <EmptyState
-              icon="🏅"
-              title="Aucun badge pour le moment"
-              description="Complète ton premier défi pour débloquer un badge."
-          />
+          <EmptyState icon="🏅" title="Aucun badge pour le moment" description="Complète ton premier défi pour débloquer un badge." />
         </template>
       </BadgesCard>
 
@@ -254,13 +289,8 @@ function editProfile() {
         <template v-if="activity.length > 0">
           <ActivityList :items="activity" />
         </template>
-
         <template v-else>
-          <EmptyState
-              icon="📭"
-              title="Aucune activité récente"
-              description="Ta participation apparaîtra ici après tes premiers défis."
-          />
+          <EmptyState icon="📭" title="Aucune activité récente" description="Ta participation apparaîtra ici après tes premiers défis." />
         </template>
       </RecentActivityCard>
 
@@ -272,64 +302,43 @@ function editProfile() {
       </ProfileActionsCard>
 
       <ContactInfoCard>
-        <ContactLine icon="✉️" label="Email" :value="email" />
+        <ContactLine v-if="showEmail" icon="✉️" label="Email" :value="email" />
+        <template v-else>
+          <ContactLine icon="🔒" label="Email" value="Masqué" />
+        </template>
       </ContactInfoCard>
+    </template>
+
+    <!-- fallback -->
+    <template v-else>
+      <EmptyState
+          icon="⚠️"
+          title="Profil indisponible"
+          description="Impossible de lire les données du profil."
+          actionLabel="Réessayer"
+          @action="fetchProfile"
+      />
     </template>
   </template>
 </template>
 
 <style scoped>
-.guest-wall{
-  min-height: 70vh;
-  display:grid;
-  place-items:center;
-}
-.guest-card{
-  width: min(520px, 92vw);
-  border-radius: 18px;
-  padding: 18px;
-  background: rgba(255,255,255,0.92);
-  box-shadow: 0 20px 50px rgba(0,0,0,0.18);
-  color: rgba(0,0,0,0.85);
-}
-.guest-card h2{ margin: 0 0 6px; }
-.guest-card p{ margin: 0 0 14px; color: rgba(0,0,0,0.6); }
+  .guest-wall{ min-height: 70vh; display:grid; place-items:center; }
+  .guest-card{ width: min(520px, 92vw); border-radius: 18px; padding: 18px; background: rgba(255,255,255,0.92);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.18); color: rgba(0,0,0,0.85); }
+  .guest-card h2{ margin: 0 0 6px; }
+  .guest-card p{ margin: 0 0 14px; color: rgba(0,0,0,0.6); }
 
-.primary{
-  width: 100%;
-  height: 44px;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  background: linear-gradient(135deg, rgba(255,120,140,0.95), rgba(180,40,90,0.95));
-  color: white;
-  font-weight: 800;
-}
+  .primary{ width: 100%; height: 44px; border: none; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(135deg, rgba(255,120,140,0.95), rgba(180,40,90,0.95));
+    color: white; font-weight: 800; }
 
-.loading{
-  padding: 18px;
-  color: rgba(0,0,0,0.65);
-  font-weight: 700;
-}
+  .loading{ padding: 18px; color: rgba(0,0,0,0.65); font-weight: 700; }
 
-.error-box{
-  width: min(520px, 92vw);
-  margin: 0 auto;
-  border-radius: 18px;
-  padding: 18px;
-  background: rgba(255,255,255,0.92);
-  box-shadow: 0 20px 50px rgba(0,0,0,0.18);
-  color: rgba(0,0,0,0.85);
-}
-.err-title{ font-weight: 900; margin-bottom: 6px; }
-.err-msg{ color: rgba(0,0,0,0.6); margin-bottom: 12px; }
-.retry{
-  height: 42px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.12);
-  background: #fff;
-  cursor:pointer;
-  font-weight: 800;
-}
+  .error-box{ width: min(520px, 92vw); margin: 0 auto; border-radius: 18px; padding: 18px;
+    background: rgba(255,255,255,0.92); box-shadow: 0 20px 50px rgba(0,0,0,0.18); color: rgba(0,0,0,0.85); }
+  .err-title{ font-weight: 900; margin-bottom: 6px; }
+  .err-msg{ color: rgba(0,0,0,0.6); margin-bottom: 12px; }
+  .retry{ height: 42px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.12);
+    background: #fff; cursor:pointer; font-weight: 800; }
 </style>

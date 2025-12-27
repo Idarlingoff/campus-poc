@@ -1,37 +1,40 @@
 <template>
   <nav class="bottom">
-    <button class="item" :class="{ active: activeKey === 'challenges' }"
-            type="button" @click="$emit('go', 'challenges')">
-      <div class="ico">◎</div>
-      <div class="lbl">Défis</div>
-    </button>
-
-    <button class="item" :class="{ active: activeKey === 'propose' }"
-            type="button" @click="$emit('go', 'propose')">
-      <div class="ico">＋</div>
-      <div class="lbl">Proposer</div>
-    </button>
-
-    <button class="item" :class="{ active: activeKey === 'activity' }"
-            type="button" @click="$emit('go', 'activity')">
-      <div class="ico">〰</div>
-      <div class="lbl">Activité</div>
+    <button
+        v-for="t in tabs"
+        :key="t.key"
+        class="item"
+        :class="{ active: activeKey === t.key }"
+        type="button"
+        @click="$emit('go', t.key)"
+    >
+      <div class="ico">{{ t.icon }}</div>
+      <div class="lbl">{{ t.label }}</div>
     </button>
   </nav>
 </template>
 
 <script setup lang="ts">
+export type TabKey = "feed" | "challenges" | "propose" | "activity";
+
+export type BottomTab = {
+  key: TabKey;
+  label: string;
+  icon: string;
+};
+
 defineProps<{
-  activeKey: "feed" | "challenges" | "propose" | "activity";
+  activeKey: TabKey;
+  tabs: BottomTab[];
 }>();
 
 defineEmits<{
-  (e: "go", key: "challenges" | "propose" | "activity"): void;
+  (e: "go", key: TabKey): void;
 }>();
 </script>
 
 <style scoped>
-  .bottom{
+  .bottom {
     position: fixed;
     left: 0;
     right: 0;

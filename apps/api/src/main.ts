@@ -8,6 +8,7 @@ import { requirePerm } from "./auth/requirePerm";
 import { adminRouter } from "./admin/admin.routes";
 import { challengesRouter } from "./challenges/challenges.routes";
 import { profileRouter } from "./profile/profile.routes";
+
 const app = express();
 
 app.use(cors());

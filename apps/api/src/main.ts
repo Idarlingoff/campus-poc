@@ -7,7 +7,7 @@ import { authJwt } from "./auth/auth.middleware";
 import { requirePerm } from "./auth/requirePerm";
 import { adminRouter } from "./admin/admin.routes";
 import { challengesRouter } from "./challenges/challenges.routes";
-
+import { profileRouter } from "./profile/profile.routes";
 const app = express();
 
 app.use(cors());
@@ -21,6 +21,8 @@ app.use("/me", meRouter);
 app.use("/admin", adminRouter);
 
 app.use("/challenges", challengesRouter);
+
+app.use("/profile", profileRouter);
 
 app.get("/debug/permissions", authJwt, requirePerm("publications:read"), (req, res) => {
     res.json({ ok: true, message: "You can read publications" });

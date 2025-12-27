@@ -7,33 +7,54 @@
       </div>
     </template>
 
-    <MenuUserHeader :name="user.name" :email="user.email" />
+    <!-- ✅ Header user uniquement si connecté -->
+    <MenuUserHeader v-if="!isGuest" :name="user.name" :email="user.email" />
 
     <MenuList>
-      <MenuItemWithBadge icon="🏆" label="Mes points" :badge="String(user.points)" @click="$emit('go', 'points')" />
-      <MenuItem icon="👥" label="Groupes" @click="$emit('go', 'groups')" />
-      <MenuItem icon="👤" label="Mon profil" @click="$emit('go', 'profile')" />
+      <!-- ✅ Menu invité -->
+      <template v-if="isGuest">
+        <MenuItem icon="🔐" label="Se connecter" @click="emitAndClose('login')" />
+        <MenuItem icon="⚙️" label="Paramètres" @click="emitAndClose('settings')" />
+        <MenuItem icon="❓" label="Aide" @click="emitAndClose('help')" />
 
-      <MenuHighlightCard
-          title="Espace Pro"
-          subtitle="Accès entreprises"
-          badge="NEW"
-          @click="$emit('go', 'pro-space')"
-      />
+        <div class="divider" />
+        <LanguageSelector v-model="lang" />
+      </template>
 
-      <MenuItem icon="⚙️" label="Paramètres" @click="$emit('go', 'settings')" />
-      <MenuItem icon="❓" label="Aide" @click="$emit('go', 'help')" />
+      <!-- ✅ Menu connecté -->
+      <template v-else>
+        <MenuItemWithBadge
+            icon="🏆"
+            label="Mes points"
+            :badge="String(user.points)"
+            @click="emitAndClose('points')"
+        />
+        <MenuItem icon="👥" label="Groupes" @click="emitAndClose('groups')" />
+        <MenuItem icon="👤" label="Mon profil" @click="emitAndClose('profile')" />
 
-      <MenuShareCard title="Partager l'app" subtitle="Invite tes amis" @click="$emit('go', 'share')" />
+        <MenuHighlightCard
+            title="Espace Pro"
+            subtitle="Accès entreprises"
+            badge="NEW"
+            @click="emitAndClose('pro-space')"
+        />
 
-      <div class="divider" />
+        <MenuItem icon="⚙️" label="Paramètres" @click="emitAndClose('settings')" />
+        <MenuItem icon="❓" label="Aide" @click="emitAndClose('help')" />
 
-      <LanguageSelector v-model="lang" />
+        <MenuShareCard title="Partager l'app" subtitle="Invite tes amis" @click="emitAndClose('share')" />
+
+        <div class="divider" />
+
+        <LanguageSelector v-model="lang" />
+      </template>
     </MenuList>
 
-    <div class="divider" />
-
-    <LogoutButton @click="$emit('logout')" />
+    <!-- ✅ Logout uniquement si connecté -->
+    <template v-if="!isGuest">
+      <div class="divider" />
+      <LogoutButton @click="onLogout" />
+    </template>
   </Drawer>
 </template>
 
@@ -55,6 +76,7 @@ const props = defineProps<{
   modelValue: boolean;
   user?: { name: string; email: string; points: number };
   language?: Lang;
+  isGuest?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -62,6 +84,7 @@ const emit = defineEmits<{
   (e: "close"): void;
   (e: "go", key: string): void;
   (e: "logout"): void;
+  (e: "login"): void;
   (e: "update:language", v: Lang): void;
 }>();
 
@@ -70,29 +93,46 @@ const open = computed({
   set: (v: boolean) => emit("update:modelValue", v),
 });
 
-const user = computed(() => props.user ?? ({ name: "Étudiant MediaSchool", email: "Email", points: 1250 }));
+const isGuest = computed(() => props.isGuest === true);
+
+const user = computed(() =>
+    props.user ?? { name: "Étudiant MediaSchool", email: "Email", points: 1250 }
+);
+
 const lang = computed({
   get: () => props.language ?? "fr",
   set: (v: Lang) => emit("update:language", v),
 });
+
+function emitAndClose(key: string) {
+  if (key === "login") emit("login");
+  else emit("go", key);
+
+  open.value = false;
+}
+
+function onLogout() {
+  emit("logout");
+  open.value = false;
+}
 </script>
 
 <style scoped>
-  .header-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-  }
-  .close{
-    border:none;
-    background: transparent;
-    cursor:pointer;
-    font-size: 20px;
-    color: rgba(0,0,0,0.65);
-  }
-  .divider{
-    height: 1px;
-    background: rgba(0,0,0,0.06);
-    margin: 14px 0;
-  }
+.header-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.close{
+  border:none;
+  background: transparent;
+  cursor:pointer;
+  font-size: 20px;
+  color: rgba(0,0,0,0.65);
+}
+.divider{
+  height: 1px;
+  background: rgba(0,0,0,0.06);
+  margin: 14px 0;
+}
 </style>

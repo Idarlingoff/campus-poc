@@ -26,13 +26,11 @@ const auth = useAuthStore();
 const menuOpen = ref(false);
 
 const user = computed(() => {
-  if (!auth.me) {
-    return { name: "", email: "", points: 0 };
-  }
+  if (!auth.me) return { name: "", email: "", points: 0 };
   return {
     name: auth.me.displayName,
     email: auth.me.email,
-    points: 0,
+    points: 0, // à brancher plus tard
   };
 });
 
@@ -50,9 +48,15 @@ const activeTab = computed<TabKey>(() => {
 });
 
 function goTab(key: TabKey) {
+  if (key === "feed") router.push("/feed"); // si ton feed est hors /app
   if (key === "challenges") router.push("/app/challenges");
   if (key === "propose") router.push("/app/propose");
   if (key === "activity") router.push("/app/activity");
+}
+
+function goLogin() {
+  menuOpen.value = false;
+  router.push({ name: "login" });
 }
 
 /**
@@ -60,9 +64,13 @@ function goTab(key: TabKey) {
  */
 function goMenu(key: string) {
   const map: Record<string, string> = {
+    points: "/app/rewards",
+    groups: "/app/groups",
     profile: "/app/profile",
+    "pro-space": "/app/pro",
     settings: "/app/settings",
     help: "/app/help",
+    share: "/app/share",
   };
 
   const target = map[key];
@@ -72,9 +80,16 @@ function goMenu(key: string) {
 }
 
 /**
- * Logout réel
+ * Logout
  */
 function logout() {
+  // si invité, pas de logout réel : on propose juste d'aller se connecter
+  if (auth.isGuest) {
+    menuOpen.value = false;
+    router.push({ name: "login" });
+    return;
+  }
+
   auth.logout();
   menuOpen.value = false;
   router.replace({ name: "login" });
@@ -88,8 +103,10 @@ function logout() {
     <BurgerMenuDrawer
         v-model="menuOpen"
         :user="user"
+        :isGuest="auth.isGuest"
         v-model:language="lang"
         @go="goMenu"
+        @login="goLogin"
         @logout="logout"
     />
 
@@ -104,3 +121,19 @@ function logout() {
     />
   </div>
 </template>
+
+<style scoped>
+.app-shell{
+  min-height: 100vh;
+  background: #f6f6f6;
+}
+
+.app-content{
+  padding: 18px;
+  padding-bottom: 98px;
+}
+
+.app-content.no-bottom{
+  padding-bottom: 18px;
+}
+</style>

@@ -7,11 +7,9 @@
       </div>
     </template>
 
-    <!-- ✅ Header user uniquement si connecté -->
     <MenuUserHeader v-if="!isGuest" :name="user.name" :email="user.email" />
 
     <MenuList>
-      <!-- ✅ Menu invité -->
       <template v-if="isGuest">
         <MenuItem icon="🔐" label="Se connecter" @click="emitAndClose('login')" />
         <MenuItem icon="⚙️" label="Paramètres" @click="emitAndClose('settings')" />
@@ -21,7 +19,6 @@
         <LanguageSelector v-model="lang" />
       </template>
 
-      <!-- ✅ Menu connecté -->
       <template v-else>
         <MenuItemWithBadge
             icon="🏆"
@@ -31,6 +28,12 @@
         />
         <MenuItem icon="👥" label="Groupes" @click="emitAndClose('groups')" />
         <MenuItem icon="👤" label="Mon profil" @click="emitAndClose('profile')" />
+        <MenuItem
+            v-if="canModerate"
+            icon="🛡️"
+            label="Modération défis"
+            @click="emitAndClose('moderation')"
+        />
 
         <MenuHighlightCard
             title="Espace Pro"
@@ -50,7 +53,6 @@
       </template>
     </MenuList>
 
-    <!-- ✅ Logout uniquement si connecté -->
     <template v-if="!isGuest">
       <div class="divider" />
       <LogoutButton @click="onLogout" />
@@ -77,6 +79,7 @@ const props = defineProps<{
   user?: { name: string; email: string; points: number };
   language?: Lang;
   isGuest?: boolean;
+  canModerate?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -93,7 +96,7 @@ const open = computed({
   set: (v: boolean) => emit("update:modelValue", v),
 });
 
-const isGuest = computed(() => props.isGuest === true);
+const isGuest = computed(() => props.isGuest);
 
 const user = computed(() =>
     props.user ?? { name: "Étudiant MediaSchool", email: "Email", points: 1250 }
@@ -118,21 +121,21 @@ function onLogout() {
 </script>
 
 <style scoped>
-.header-row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-.close{
-  border:none;
-  background: transparent;
-  cursor:pointer;
-  font-size: 20px;
-  color: rgba(0,0,0,0.65);
-}
-.divider{
-  height: 1px;
-  background: rgba(0,0,0,0.06);
-  margin: 14px 0;
-}
+  .header-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .close{
+    border:none;
+    background: transparent;
+    cursor:pointer;
+    font-size: 20px;
+    color: rgba(0,0,0,0.65);
+  }
+  .divider{
+    height: 1px;
+    background: rgba(0,0,0,0.06);
+    margin: 14px 0;
+  }
 </style>

@@ -14,6 +14,7 @@ import ProfilePage from "../page/ProfilePage.vue";
 import ChallengesPage from "../page/ChallengesPage.vue";
 import ProposeChallengePage from "../page/ProposeChallengePage.vue";
 import ChallengeModerationPage from "../page/ChallengeModerationPage.vue";
+import ChallengeDetailPage from "../page/ChallengeDetailPage.vue";
 
 import { installAuthGuards } from "./guard.ts";
 
@@ -47,6 +48,7 @@ const routes: RouteRecordRaw[] = [
             { path: "propose", name: "propose", component: ProposeChallengePage },
             { path: "moderation", name: "moderation", component: ChallengeModerationPage, meta: { requiresAuth: true, requiresPerm: "challenges:moderate" } },
             { path: "challenges", name: "challenges", component: ChallengesPage },
+            { path: "challenges/:id", name: "challenge-detail", component: ChallengeDetailPage },
             { path: "profile", name: "profile", component: ProfilePage },
         ],
     },

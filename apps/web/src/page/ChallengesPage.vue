@@ -143,8 +143,7 @@ function openChallenge(uiId: number) {
   const item = challenges.value.find((c) => c.id === uiId);
   if (!item) return;
 
-  // plus tard : router.push(`/app/challenges/${item.realId}`)
-  console.log("open challenge realId:", item.realId);
+  router.push({ name: "challenge-detail", params: { id: item.realId } });
 }
 
 function goLogin() {

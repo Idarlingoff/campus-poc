@@ -10,7 +10,14 @@
     "test": "npm run test -ws",
     "format": "prettier -w .",
     "docker:up": "docker compose up --build",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "db:new": "dbmate --migrations-dir apps/api/db/migrations new",
+    "db:up": "set -a && [ -f .env.local ] && . .env.local && dbmate --migrations-dir apps/api/db/migrations up",
+    "db:down": "set -a && [ -f .env.local ] && . .env.local && dbmate --migrations-dir apps/api/db/migrations down",
+    "db:status": "set -a && [ -f .env.local ] && . .env.local && dbmate --migrations-dir apps/api/db/migrations status",
+    "db:create": "set -a && [ -f .env.local ] && . .env.local && dbmate --migrations-dir apps/api/db/migrations create",
+    "db:drop": "set -a && [ -f .env.local ] && . .env.local && dbmate --migrations-dir apps/api/db/migrations drop",
+    "db:dump": "set -a && [ -f .env.local ] && . .env.local && dbmate --migrations-dir apps/api/db/migrations dump"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.2.0",

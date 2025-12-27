@@ -31,8 +31,11 @@ L’objectif principal de cette phase est de **poser des fondations saines**, re
 
 ### Base de données
 
-* **PostgreSQL**
-* Lancement via Docker (à venir / en cours d’intégration)
+* **PostgreSQL 16**
+* Lancement via Docker
+* **Migrations gérées avec dbmate**
+
+📚 **Guide complet des migrations** : [docs/DBMATE_GUIDE.md](docs/DBMATE_GUIDE.md)
 
 ---
 

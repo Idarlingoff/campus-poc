@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { apiRequest, ApiError } from "@/services/api";
 
@@ -23,12 +23,13 @@ import ProfileActionItem from "../components/profile/ProfileActionItem.vue";
 
 import ContactInfoCard from "../components/profile/ContactInfoCard.vue";
 import ContactLine from "../components/profile/ContactLine.vue";
+import SocialsCard from "../components/profile/SocialsCard.vue";
 import EmptyState from "@/components/ui/EmptyState.vue";
 
 type LastNameVisibility = "FULL" | "INITIAL" | "HIDDEN";
 type ProfileVisibility = "CAMPUS" | "PRIVATE";
 
-type ProfileMeResponse = {
+type ProfileResponse = {
   identity: {
     id: string;
     email: string;
@@ -62,31 +63,46 @@ type ProfileMeResponse = {
       linkedinUrl: string;
       websiteUrl: string;
     };
-
     roles?: string[];
   };
+
+  follow?: {
+    followersCount: number;
+    followingCount: number;
+    isFollowing: boolean;
+  };
+
   stats?: {
     pointsTotal: number;
     challengesDone: number;
     ranking: number | null;
   };
+
   progression?: {
     current: number;
     max: number;
     hint: string;
   };
+
   badges?: Array<{ title: string; description: string; icon: string; unlocked: boolean }>;
   recentActivity?: Array<{ icon: string; title: string; meta: string; points?: number; createdAt: string }>;
 };
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 
 const isGuest = computed(() => auth.isGuest || !auth.isAuthenticated);
 
 const loading = ref(false);
 const error = ref<string | null>(null);
-const profile = ref<ProfileMeResponse | null>(null);
+const profile = ref<ProfileResponse | null>(null);
+
+/**
+ * Mode: my profile or other user profile
+ */
+const targetId = computed(() => String(route.params.id ?? ""));
+const isOtherUser = computed(() => !!targetId.value && targetId.value !== auth.me?.id);
 
 function goLogin() {
   router.push({ name: "login" });
@@ -103,11 +119,19 @@ async function fetchProfile() {
   error.value = null;
 
   try {
-    profile.value = await apiRequest<ProfileMeResponse>("/profile/me", { token: auth.token });
+    const url = isOtherUser.value
+        ? `/profile/${encodeURIComponent(targetId.value)}`
+        : "/profile/me";
+
+    profile.value = await apiRequest<ProfileResponse>(url, { token: auth.token });
   } catch (e: any) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      auth.logout();
-      router.replace({ name: "login" });
+      if (e.status === 401) {
+        auth.logout();
+        router.replace({ name: "login" });
+        return;
+      }
+      error.value = e.body?.message ?? "Profil privé";
       return;
     }
     error.value = e instanceof ApiError ? (e.body?.message ?? "Erreur profil") : "Erreur profil";
@@ -127,6 +151,17 @@ onMounted(async () => {
   await fetchProfile();
 });
 
+watch(
+    () => route.params.id,
+    async () => {
+      if (isGuest.value) return;
+      await fetchProfile();
+    }
+);
+
+/**
+ * Helpers (name/avatar/date)
+ */
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "🙂";
@@ -136,7 +171,6 @@ function initials(name: string) {
 }
 
 const identity = computed(() => profile.value?.identity);
-
 const displayName = computed(() => identity.value?.displayName ?? auth.me?.displayName ?? "");
 
 const publicName = computed(() => {
@@ -173,6 +207,17 @@ const email = computed(() => identity.value?.email ?? auth.me?.email ?? "");
 const showAge = computed(() => !!identity.value?.showAge);
 const age = computed(() => identity.value?.age ?? null);
 
+function formatFrMonthYear(iso: string | null | undefined) {
+  if (!iso) return "";
+  const s = String(iso);
+  const yyyyMm = s.slice(0, 7);
+  const [y, m] = yyyyMm.split("-");
+  if (!y || !m) return yyyyMm;
+  const date = new Date(Number(y), Number(m) - 1, 1);
+  const out = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(date);
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
 const stats = computed(() => {
   const s = profile.value?.stats;
   if (!s) return [];
@@ -183,7 +228,6 @@ const stats = computed(() => {
   ];
 });
 
-/** ✅ FIX ICI : progression peut être undefined */
 const progressionCurrent = computed(() => profile.value?.progression?.current ?? 0);
 const progressionMax = computed(() => profile.value?.progression?.max ?? 1000);
 const progressHint = computed(() => profile.value?.progression?.hint ?? "");
@@ -212,20 +256,36 @@ const activity = computed<ActivityItem[]>(() =>
     }))
 );
 
-function formatFrMonthYear(iso: string | null | undefined) {
+/**
+ * Follow / unfollow
+ * (requires backend endpoints POST/DELETE /profile/:id/follow)
+ */
+const followBusy = ref(false);
 
-  if (!iso) return "";
-  const s = String(iso);
+async function toggleFollow() {
+  if (!auth.token || !profile.value) return;
+  const id = profile.value.identity.id;
+  const currentlyFollowing = !!profile.value.follow?.isFollowing;
 
-  const yyyyMm = s.slice(0, 7);
-  const [y, m] = yyyyMm.split("-");
-  if (!y || !m) return yyyyMm;
-
-  const date = new Date(Number(y), Number(m) - 1, 1);
-  const out = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(date);
-  return out.charAt(0).toUpperCase() + out.slice(1);
+  followBusy.value = true;
+  try {
+    if (currentlyFollowing) {
+      await apiRequest(`/profile/${encodeURIComponent(id)}/follow`, { method: "DELETE", token: auth.token });
+    } else {
+      await apiRequest(`/profile/${encodeURIComponent(id)}/follow`, { method: "POST", token: auth.token });
+    }
+    // refresh to get exact counters
+    await fetchProfile();
+  } catch (_e) {
+    // optional: toast
+  } finally {
+    followBusy.value = false;
+  }
 }
 
+/**
+ * Actions
+ */
 function goSettings() {
   router.push("/app/settings");
 }
@@ -235,6 +295,9 @@ function goShare() {
 function editProfile() {
   router.push({ name: "profile-edit" });
 }
+function backToSearch() {
+  router.push({ name: "users" }); // adapte si ton nom de route diffère
+}
 </script>
 
 <template>
@@ -242,7 +305,7 @@ function editProfile() {
   <div v-if="isGuest" class="guest-wall">
     <div class="guest-card">
       <h2>Profil indisponible en mode invité</h2>
-      <p>Connecte-toi pour accéder à ton profil, tes badges et ta progression.</p>
+      <p>Connecte-toi pour accéder aux profils.</p>
       <button class="primary" type="button" @click="goLogin">Se connecter</button>
     </div>
   </div>
@@ -254,12 +317,21 @@ function editProfile() {
     <div v-else-if="error" class="error-box">
       <div class="err-title">Impossible de charger le profil</div>
       <div class="err-msg">{{ error }}</div>
-      <button class="retry" type="button" @click="fetchProfile">Réessayer</button>
+      <div style="display:flex; gap:10px; margin-top:12px;">
+        <button class="retry" type="button" @click="fetchProfile">Réessayer</button>
+        <button
+            v-if="isOtherUser"
+            class="retry"
+            type="button"
+            @click="backToSearch"
+        >
+          Retour recherche
+        </button>
+      </div>
     </div>
 
-    <!-- ✅ FIX : on ne rend le profil que si profile != null -->
     <template v-else-if="profile">
-      <ProfileHeroCard :showEdit="true" @edit="editProfile">
+      <ProfileHeroCard :showEdit="!isOtherUser" @edit="editProfile">
         <ProfileIdentity
             :name="publicName"
             :schoolLine="schoolLine"
@@ -269,8 +341,39 @@ function editProfile() {
             :avatarText="avatarText"
             :avatarUrl="avatarUrl"
         />
+
+        <!-- follow counters + follow btn (other user only) -->
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; color: rgba(0,0,0,0.6); font-weight:900;">
+          <div>👥 Abonnés : {{ profile.follow?.followersCount ?? 0 }}</div>
+          <div>➡️ Abonnements : {{ profile.follow?.followingCount ?? 0 }}</div>
+
+          <button
+              v-if="isOtherUser"
+              type="button"
+              :disabled="followBusy"
+              @click="toggleFollow"
+              style="margin-left:auto; height:40px; padding:0 14px; border-radius:12px; border:none; cursor:pointer;
+            background: linear-gradient(135deg, rgba(255,120,140,0.95), rgba(180,40,90,0.95));
+            color:white; font-weight:900;"
+          >
+            {{ profile.follow?.isFollowing ? "Ne plus suivre" : "Suivre" }}
+          </button>
+        </div>
+
         <ProfileStatsRow :stats="stats" />
       </ProfileHeroCard>
+
+      <!-- Réseaux sociaux -->
+      <SocialsCard
+        v-if="profile.identity.socials?.show && (
+          profile.identity.socials.instagramHandle ||
+          profile.identity.socials.linkedinUrl ||
+          profile.identity.socials.websiteUrl
+        )"
+        :instagramHandle="profile.identity.socials.instagramHandle"
+        :linkedinUrl="profile.identity.socials.linkedinUrl"
+        :websiteUrl="profile.identity.socials.websiteUrl"
+      />
 
       <ProfileProgressCard rightLabel=" ">
         <LevelProgressBar :current="progressionCurrent" :max="progressionMax" :hint="progressHint" />
@@ -290,16 +393,29 @@ function editProfile() {
           <ActivityList :items="activity" />
         </template>
         <template v-else>
-          <EmptyState icon="📭" title="Aucune activité récente" description="Ta participation apparaîtra ici après tes premiers défis." />
+          <EmptyState icon="📭" title="Aucune activité récente" description="La participation apparaîtra ici." />
         </template>
       </RecentActivityCard>
 
-      <ProfileActionsCard>
+      <!-- Actions: only for my profile -->
+      <ProfileActionsCard v-if="!isOtherUser">
         <ProfileActionItem icon="👤" label="Modifier le profil" @click="editProfile" />
         <ProfileActionItem icon="🔗" label="Partager mon profil" @click="goShare" />
         <ProfileActionItem icon="⚙️" label="Paramètres" @click="goSettings" />
         <ProfileActionItem icon="⎋" label="Déconnexion" danger @click="logout" />
       </ProfileActionsCard>
+
+      <!-- Back button (other user only) -->
+      <div v-else style="margin-top:12px;">
+        <button
+            type="button"
+            @click="backToSearch"
+            style="width:100%; height:44px; border-radius:12px; border:1px solid rgba(0,0,0,0.12);
+          background:#fff; cursor:pointer; font-weight:900;"
+        >
+          ← Retour à la recherche
+        </button>
+      </div>
 
       <ContactInfoCard>
         <ContactLine v-if="showEmail" icon="✉️" label="Email" :value="email" />
@@ -309,7 +425,6 @@ function editProfile() {
       </ContactInfoCard>
     </template>
 
-    <!-- fallback -->
     <template v-else>
       <EmptyState
           icon="⚠️"

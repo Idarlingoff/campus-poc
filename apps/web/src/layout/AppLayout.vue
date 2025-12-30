@@ -4,10 +4,10 @@ import { useRoute, useRouter, RouterView } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
 import AppTopBar from "@/components/ui/AppTopBar.vue";
-import BottomNav, {type BottomTab} from "@/components/ui/BottomNav.vue";
+import BottomNav, { type BottomTab } from "@/components/ui/BottomNav.vue";
 import BurgerMenuDrawer from "@/components/navigation/BurgerMenuDrawer.vue";
 
-type TabKey = "feed" | "challenges" | "propose" | "activity";
+type TabKey = "feed" | "challenges" | "propose" | "activity" | "search";
 type Lang = "fr" | "en" | "es";
 
 const props = defineProps<{
@@ -36,9 +36,12 @@ const user = computed(() => {
 });
 
 const tabs = computed<BottomTab[]>(() => {
-  const base: BottomTab[] = [
-    { key: "feed", label: "Accueil", icon: "🏠" }, // ✅ toujours visible
-  ];
+  const base: BottomTab[] = [{ key: "feed", label: "Accueil", icon: "🏠" }];
+
+  // 🔎 Search -> accessible à tous SAUF invité
+  if (!auth.isGuest && auth.isAuthenticated) {
+    base.push({ key: "search", label: "Rechercher", icon: "🔎" });
+  }
 
   if (auth.can("challenges:read")) {
     base.push({ key: "challenges", label: "Défis", icon: "◎" });
@@ -48,13 +51,9 @@ const tabs = computed<BottomTab[]>(() => {
     base.push({ key: "propose", label: "Proposer", icon: "＋" });
   }
 
-  if (auth.can("activity:read")) {
-    base.push({ key: "activity", label: "Activité", icon: "〰" });
-  }
-
-  if (base.length === 0) {
-    base.push({ key: "feed", label: "Accueil", icon: "🏠" });
-  }
+  // Tu avais activity:read, mais dans tes routes tu as /app/profile, pas /app/activity
+  // On garde le tab "activity" mais on le route vers /app/profile.
+  base.push({ key: "activity", label: "Profil", icon: "👤" });
 
   return base;
 });
@@ -66,24 +65,28 @@ const lang = computed<Lang>({
 
 const activeTab = computed<TabKey>(() => {
   const p = route.path;
+
+  if (p.startsWith("/app/users")) return "search";
   if (p.startsWith("/app/challenges")) return "challenges";
   if (p.startsWith("/app/propose")) return "propose";
-  if (p.startsWith("/app/activity")) return "activity";
+  if (p.startsWith("/app/profile")) return "activity";
+
   return "feed";
 });
 
 const safeActiveTab = computed<TabKey>(() => {
   const a = activeTab.value;
-  return tabs.value.some(t => t.key === a) ? a : (tabs.value[0]?.key ?? "feed");
+  return tabs.value.some((t) => t.key === a) ? a : (tabs.value[0]?.key ?? "feed");
 });
 
 function goTab(key: TabKey) {
-  if (!tabs.value.some(t => t.key === key)) return;
+  if (!tabs.value.some((t) => t.key === key)) return;
 
-  if (key === "feed") router.push("/feed");
+  if (key === "feed") router.push("/app/feed");
+  if (key === "search") router.push("/app/users");
   if (key === "challenges") router.push("/app/challenges");
   if (key === "propose") router.push("/app/propose");
-  if (key === "activity") router.push("/app/activity");
+  if (key === "activity") router.push("/app/profile");
 }
 
 function goLogin() {
@@ -109,11 +112,7 @@ function goMenu(key: string) {
   menuOpen.value = false;
 }
 
-/**
- * Logout
- */
 function logout() {
-  // si invité, pas de logout réel : on propose juste d'aller se connecter
   if (auth.isGuest) {
     menuOpen.value = false;
     router.push({ name: "login" });

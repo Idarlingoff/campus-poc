@@ -36,6 +36,12 @@ type ProfilePatch = {
     avatarUrl?: string | null;
 };
 
+type FollowInfo = {
+    followersCount: number;
+    followingCount: number;
+    isFollowing: boolean;
+};
+
 function roleLabel(roles: string[]) {
     if (roles.includes("student")) return "Étudiant · MediaSchool";
     if (roles.includes("staff")) return "Intervenant / Équipe pédagogique";
@@ -183,6 +189,9 @@ export async function getMyProfile(userId: string) {
 
     const age = computeAge(p?.birth_date ?? null);
 
+    // follow counts for own profile
+    const followCounts = await getFollowCounts(userId);
+
     return {
         identity: {
             id: u.id,
@@ -230,6 +239,12 @@ export async function getMyProfile(userId: string) {
             current: pointsTotal,
             max: levelMax,
             hint,
+        },
+
+        follow: {
+            followersCount: followCounts.followers,
+            followingCount: followCounts.following,
+            isFollowing: false, // not applicable for own profile
         },
 
         badges: badgeRows.map((b) => ({
@@ -415,19 +430,372 @@ export async function patchMyProfile(userId: string, patch: ProfilePatch) {
                 emptyToNull(linkedinUrl),
                 emptyToNull(websiteUrl),
 
-                // Flags to indicate if the field was provided
-                birthDate !== undefined,           // $20
-                showEmail !== undefined,           // $21
-                showBirthDate !== undefined,       // $22
-                showAge !== undefined,             // $23
-                profileVisibility !== undefined,   // $24
-                showSocials !== undefined,         // $25
-                lastNameVisibility !== undefined,  // $26
+                birthDate !== undefined,
+                showEmail !== undefined,
+                showBirthDate !== undefined,
+                showAge !== undefined,
+                profileVisibility !== undefined,
+                showSocials !== undefined,
+                lastNameVisibility !== undefined,
             ]
         );
     }
 
     return await getMyProfile(userId);
+}
+
+async function getFollowCounts(userId: string) {
+    const rows = await query<{ followers: number; following: number }>(
+        `
+    select
+      (select count(*)::int from user_follows where followed_user_id = $1) as followers,
+      (select count(*)::int from user_follows where follower_user_id = $1) as following
+    `,
+        [userId]
+    );
+    return rows[0] ?? { followers: 0, following: 0 };
+}
+
+async function isFollowing(viewerId: string, targetId: string) {
+    const rows = await query<{ ok: boolean }>(
+        `select true as ok from user_follows where follower_user_id=$1 and followed_user_id=$2 limit 1`,
+        [viewerId, targetId]
+    );
+    return rows.length > 0;
+}
+
+export async function followUser(followerId: string, followedId: string) {
+    if (followerId === followedId) throw new Error("Tu ne peux pas te suivre toi-même");
+
+    await query(
+        `
+    insert into user_follows (follower_user_id, followed_user_id)
+    values ($1, $2)
+    on conflict do nothing
+    `,
+        [followerId, followedId]
+    );
+
+    const counts = await getFollowCounts(followedId);
+    return { followedId, followersCount: counts.followers };
+}
+
+export async function unfollowUser(followerId: string, followedId: string) {
+    await query(
+        `delete from user_follows where follower_user_id=$1 and followed_user_id=$2`,
+        [followerId, followedId]
+    );
+
+    const counts = await getFollowCounts(followedId);
+    return { followedId, followersCount: counts.followers };
+}
+
+export async function listMyFollowing(userId: string) {
+    const rows = await query<{
+        id: string;
+        display_name: string;
+        avatar_url: string | null;
+        avatar_text: string | null;
+    }>(
+        `
+    select u.id, u.display_name, up.avatar_url, up.avatar_text
+    from user_follows f
+    join users u on u.id = f.followed_user_id
+    left join user_profile up on up.user_id = u.id
+    where f.follower_user_id = $1
+    order by f.created_at desc
+    limit 200
+    `,
+        [userId]
+    );
+
+    return rows.map(r => ({
+        id: r.id,
+        displayName: r.display_name,
+        avatarUrl: r.avatar_url ?? null,
+        avatarText: r.avatar_text ?? "",
+    }));
+}
+
+export async function listMyFollowers(userId: string) {
+    const rows = await query<{
+        id: string;
+        display_name: string;
+        avatar_url: string | null;
+        avatar_text: string | null;
+    }>(
+        `
+    select u.id, u.display_name, up.avatar_url, up.avatar_text
+    from user_follows f
+    join users u on u.id = f.follower_user_id
+    left join user_profile up on up.user_id = u.id
+    where f.followed_user_id = $1
+    order by f.created_at desc
+    limit 200
+    `,
+        [userId]
+    );
+
+    return rows.map(r => ({
+        id: r.id,
+        displayName: r.display_name,
+        avatarUrl: r.avatar_url ?? null,
+        avatarText: r.avatar_text ?? "",
+    }));
+}
+
+export async function searchProfiles(viewerId: string, q: string, limit = 20, offset = 0) {
+    const needle = `%${q.replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
+
+    // ✅ On ne renvoie que des profils "CAMPUS" + soi-même
+    // ✅ isFollowing inclus (utile bouton)
+    const rows = await query<{
+        id: string;
+        display_name: string;
+        first_name: string | null;
+        last_name: string | null;
+        last_name_visibility: "FULL" | "INITIAL" | "HIDDEN";
+        avatar_url: string | null;
+        avatar_text: string | null;
+        city: string | null;
+        school_line: string | null;
+        profile_visibility: "CAMPUS" | "PRIVATE";
+        is_following: boolean;
+    }>(
+        `
+    select
+      u.id,
+      u.display_name,
+      up.first_name,
+      up.last_name,
+      up.last_name_visibility,
+      up.avatar_url,
+      up.avatar_text,
+      up.city,
+      up.school_line,
+      up.profile_visibility,
+      exists(
+        select 1 from user_follows f
+        where f.follower_user_id = $1 and f.followed_user_id = u.id
+      ) as is_following
+    from users u
+    left join user_profile up on up.user_id = u.id
+    where
+      (
+        u.display_name ilike $2
+        or coalesce(up.first_name,'') ilike $2
+        or coalesce(up.last_name,'') ilike $2
+      )
+      and (
+        coalesce(up.profile_visibility, 'CAMPUS') = 'CAMPUS'
+        or u.id = $1
+      )
+    order by
+      (u.id = $1) desc,
+      u.display_name asc
+    limit $3 offset $4
+    `,
+        [viewerId, needle, limit, offset]
+    );
+
+    const totalRows = await query<{ total: number }>(
+        `
+    select count(*)::int as total
+    from users u
+    left join user_profile up on up.user_id = u.id
+    where
+      (
+        u.display_name ilike $2
+        or coalesce(up.first_name,'') ilike $2
+        or coalesce(up.last_name,'') ilike $2
+      )
+      and (
+        coalesce(up.profile_visibility, 'CAMPUS') = 'CAMPUS'
+        or u.id = $1
+      )
+    `,
+        [viewerId, needle]
+    );
+
+    return {
+        items: rows.map(r => ({
+            id: r.id,
+            displayName: r.display_name,
+            firstName: r.first_name ?? "",
+            lastName: r.last_name ?? "",
+            lastNameVisibility: r.last_name_visibility ?? "FULL",
+            avatarUrl: r.avatar_url ?? null,
+            avatarText: r.avatar_text ?? "",
+            city: r.city ?? "",
+            schoolLine: r.school_line ?? "",
+            profileVisibility: r.profile_visibility ?? "CAMPUS",
+            isFollowing: r.is_following,
+        })),
+        total: totalRows[0]?.total ?? 0,
+    };
+}
+
+/**
+ * ✅ Profil d'un autre user (page /users/:id)
+ * Respect de profileVisibility
+ */
+export async function getProfileById(viewerId: string, targetId: string) {
+    const users = await query<{ id: string; email: string; display_name: string }>(
+        `select id, email, display_name from users where id = $1`,
+        [targetId]
+    );
+    const u = users[0];
+    if (!u) throw new Error("User not found");
+
+    const profRows = await query<{
+        bio: string | null;
+        city: string | null;
+        school_line: string | null;
+        since_date: string | null;
+
+        avatar_text: string | null;
+        avatar_url: string | null;
+
+        first_name: string | null;
+        last_name: string | null;
+        birth_date: string | null;
+
+        show_email: boolean;
+        show_birth_date: boolean;
+        show_age: boolean;
+
+        last_name_visibility: LastNameVisibility;
+        profile_visibility: ProfileVisibility;
+
+        instagram_handle: string | null;
+        linkedin_url: string | null;
+        website_url: string | null;
+        show_socials: boolean;
+    }>(
+        `
+    select
+      bio, city, school_line, since_date,
+      avatar_text, avatar_url,
+      first_name, last_name, birth_date,
+      show_email, show_birth_date, show_age,
+      last_name_visibility, profile_visibility,
+      instagram_handle, linkedin_url, website_url, show_socials
+    from user_profile
+    where user_id = $1
+    `,
+        [targetId]
+    );
+    const p = profRows[0] ?? null;
+
+    const visibility = p?.profile_visibility ?? "CAMPUS";
+    if (visibility === "PRIVATE" && viewerId !== targetId) {
+        const err: any = new Error("Profil privé");
+        err.status = 403;
+        throw err;
+    }
+
+    // follows counts + isFollowing
+    const [followersRow] = await query<{ c: number }>(
+        `select count(*)::int as c from user_follows where followed_user_id = $1`,
+        [targetId]
+    );
+    const [followingRow] = await query<{ c: number }>(
+        `select count(*)::int as c from user_follows where follower_user_id = $1`,
+        [targetId]
+    );
+
+    const isFollowing =
+        viewerId === targetId
+            ? false
+            : !!(await query<{ ok: boolean }>(
+                `select true as ok from user_follows where follower_user_id=$1 and followed_user_id=$2 limit 1`,
+                [viewerId, targetId]
+            ))[0];
+
+    const age = computeAge(p?.birth_date ?? null);
+
+    return {
+        identity: {
+            id: u.id,
+            email: u.email,
+            displayName: u.display_name,
+
+            firstName: p?.first_name ?? "",
+            lastName: p?.last_name ?? "",
+            lastNameVisibility: p?.last_name_visibility ?? "FULL",
+
+            bio: p?.bio ?? "",
+            city: p?.city ?? "",
+            schoolLine: p?.school_line ?? "",
+            sinceDate: p?.since_date ?? null,
+
+            avatarText: p?.avatar_text ?? "",
+            avatarUrl: p?.avatar_url ?? null,
+
+            showEmail: p?.show_email ?? false,
+            showAge: p?.show_age ?? false,
+            age,
+
+            profileVisibility: visibility,
+
+            socials: {
+                show: p?.show_socials ?? true,
+                instagramHandle: p?.instagram_handle ?? "",
+                linkedinUrl: p?.linkedin_url ?? "",
+                websiteUrl: p?.website_url ?? "",
+            },
+        },
+        follow: {
+            followersCount: followersRow?.c ?? 0,
+            followingCount: followingRow?.c ?? 0,
+            isFollowing,
+        },
+    };
+}
+
+export async function getFullProfile(viewerId: string, targetId: string) {
+    // 1) récupérer le profil complet du target (réutilise ta logique)
+    const data = await getMyProfile(targetId);
+
+    // 2) gérer la visibilité PRIVATE
+    const visibility = data.identity.profileVisibility ?? "CAMPUS";
+    if (visibility === "PRIVATE" && viewerId !== targetId) {
+        const err: any = new Error("Profil privé");
+        err.status = 403;
+        throw err;
+    }
+
+    // 3) cacher l’email si l’utilisateur n’a pas autorisé (et si viewer != owner)
+    if (viewerId !== targetId && !data.identity.showEmail) {
+        data.identity.email = ""; // ou null si tu préfères
+    }
+
+    // 4) follow counts + isFollowing (table user_follows)
+    const [followersRow] = await query<{ c: number }>(
+        `select count(*)::int as c from user_follows where followed_user_id = $1`,
+        [targetId]
+    );
+    const [followingRow] = await query<{ c: number }>(
+        `select count(*)::int as c from user_follows where follower_user_id = $1`,
+        [targetId]
+    );
+
+    const isFollowing =
+        viewerId === targetId
+            ? false
+            : !!(await query<{ ok: boolean }>(
+                `select true as ok from user_follows where follower_user_id=$1 and followed_user_id=$2 limit 1`,
+                [viewerId, targetId]
+            ))[0];
+
+    return {
+        ...data,
+        follow: {
+            followersCount: followersRow?.c ?? 0,
+            followingCount: followingRow?.c ?? 0,
+            isFollowing,
+        },
+    };
 }
 
 function emptyToNull(v: string | undefined) {

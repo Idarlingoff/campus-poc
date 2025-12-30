@@ -1,7 +1,7 @@
 <template>
   <nav class="bottom">
     <button
-        v-for="t in tabs"
+        v-for="t in visibleTabs"
         :key="t.key"
         class="item"
         :class="{ active: activeKey === t.key }"
@@ -15,7 +15,9 @@
 </template>
 
 <script setup lang="ts">
-export type TabKey = "feed" | "challenges" | "propose" | "activity";
+import { computed } from "vue";
+
+export type TabKey = "feed" | "challenges" | "propose" | "activity" | "search";
 
 export type BottomTab = {
   key: TabKey;
@@ -23,14 +25,20 @@ export type BottomTab = {
   icon: string;
 };
 
-defineProps<{
+const props = defineProps<{
   activeKey: TabKey;
   tabs: BottomTab[];
+  isGuest?: boolean; // ✅ nouveau
 }>();
 
 defineEmits<{
   (e: "go", key: TabKey): void;
 }>();
+
+const visibleTabs = computed(() => {
+  if (props.isGuest) return props.tabs.filter((t) => t.key !== "search");
+  return props.tabs;
+});
 </script>
 
 <style scoped>
@@ -40,28 +48,32 @@ defineEmits<{
     right: 0;
     bottom: 0;
     height: 78px;
-    background: rgba(255,255,255,0.92);
+    background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(8px);
-    border-top: 1px solid rgba(0,0,0,0.06);
-    display:flex;
-    justify-content:space-around;
-    align-items:center;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
     z-index: 50;
   }
-  .item{
+  .item {
     width: 110px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:6px;
-    border:none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    border: none;
     background: transparent;
-    cursor:pointer;
-    color: rgba(30,30,30,0.70);
+    cursor: pointer;
+    color: rgba(30, 30, 30, 0.7);
   }
-  .item .ico{ font-size: 22px; }
-  .item .lbl{ font-size: 12px; }
-  .item.active{
+  .item .ico {
+    font-size: 22px;
+  }
+  .item .lbl {
+    font-size: 12px;
+  }
+  .item.active {
     color: #d43b6e;
   }
 </style>

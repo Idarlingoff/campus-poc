@@ -8,6 +8,8 @@ import { requirePerm } from "./auth/requirePerm";
 import { adminRouter } from "./admin/admin.routes";
 import { challengesRouter } from "./challenges/challenges.routes";
 import { profileRouter } from "./profile/profile.routes";
+import { usersRouter } from "./users/users.routes";
+import path from "path";
 
 const app = express();
 
@@ -24,6 +26,8 @@ app.use("/admin", adminRouter);
 app.use("/challenges", challengesRouter);
 
 app.use("/profile", profileRouter);
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/users", usersRouter);
 
 app.get("/debug/permissions", authJwt, requirePerm("publications:read"), (req, res) => {
     res.json({ ok: true, message: "You can read publications" });

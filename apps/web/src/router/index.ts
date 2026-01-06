@@ -11,10 +11,12 @@ import TermsPage from "../page/TermsPage.vue";
 
 import FeedPage from "../page/FeedPage.vue";
 import ProfilePage from "../page/ProfilePage.vue";
+import ProfileEditPage from "../page/ProfileEditPage.vue"
 import ChallengesPage from "../page/ChallengesPage.vue";
 import ProposeChallengePage from "../page/ProposeChallengePage.vue";
 import ChallengeModerationPage from "../page/ChallengeModerationPage.vue";
 import ChallengeDetailPage from "../page/ChallengeDetailPage.vue";
+import UserProfilePage from "../page/UserProfilePage.vue";
 
 import { installAuthGuards } from "./guard.ts";
 
@@ -50,6 +52,10 @@ const routes: RouteRecordRaw[] = [
             { path: "challenges", name: "challenges", component: ChallengesPage },
             { path: "challenges/:id", name: "challenge-detail", component: ChallengeDetailPage },
             { path: "profile", name: "profile", component: ProfilePage },
+            { path: "profile/:id", name: "profile-user", component: ProfilePage },
+            { path: "profile/edit", name: "profile-edit", component: ProfileEditPage },
+            { path: "/app/users", name: "users", component: UserProfilePage },
+            { path: "/app/users/:id", name: "user-profile", component: UserProfilePage },
         ],
     },
 

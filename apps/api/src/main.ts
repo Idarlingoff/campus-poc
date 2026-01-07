@@ -9,6 +9,8 @@ import { adminRouter } from "./admin/admin.routes";
 import { challengesRouter } from "./challenges/challenges.routes";
 import { profileRouter } from "./profile/profile.routes";
 import { usersRouter } from "./users/users.routes";
+import { feedRouter } from "./feed/feed.routes";
+import { publicationsRouter } from "./publications/publications.routes";
 import path from "path";
 
 const app = express();
@@ -23,6 +25,8 @@ app.use("/me", meRouter);
 
 app.use("/admin", adminRouter);
 
+app.use("/feed", feedRouter);
+app.use("/publications", publicationsRouter)
 app.use("/challenges", challengesRouter);
 
 app.use("/profile", profileRouter);

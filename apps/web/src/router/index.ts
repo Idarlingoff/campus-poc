@@ -46,7 +46,7 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true },
         children: [
             { path: "feed", name: "feed", component: FeedPage },
-            { path: "", redirect: "/app/challenges" },
+            { path: "", redirect: "/app/feed" },
             { path: "propose", name: "propose", component: ProposeChallengePage },
             { path: "moderation", name: "moderation", component: ChallengeModerationPage, meta: { requiresAuth: true, requiresPerm: "challenges:moderate" } },
             { path: "challenges", name: "challenges", component: ChallengesPage },

@@ -24,3 +24,26 @@ export async function authJwt(req: AuthedRequest, res: Response, next: NextFunct
         return res.status(401).json({ message: "Invalid or expired token" });
     }
 }
+
+export async function optionalAuthJwt(req: AuthedRequest, res: Response, next: NextFunction) {
+    const auth = req.headers.authorization;
+
+    if (!auth || !auth.startsWith("Bearer ")) {
+        // Pas de token => invité => on laisse passer
+        return next();
+    }
+
+    const token = auth.slice("Bearer ".length).trim();
+    try {
+        const payload = verifyAccessToken(token);
+        const userId = payload.sub;
+
+        const me = await getMe(userId);
+        req.user = me;
+
+        return next();
+    } catch (err) {
+        // Token invalide => on laisse passer en invité OU tu peux 401
+        return next();
+    }
+}

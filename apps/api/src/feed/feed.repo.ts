@@ -1,38 +1,40 @@
 import { Pool } from 'pg';
 
 export class FeedRepo {
-    constructor(private db: Pool) {}
+  constructor(private db: Pool) {}
 
-    async getUserCampus(userId: string): Promise<{ campusId: string | null; city: string | null }> {
-        const q = `
-      SELECT up.campus_id as "campusId", c.city as "city"
-      FROM user_profile up
-      LEFT JOIN campuses c ON c.id = up.campus_id
-      WHERE up.user_id = $1
+  async getUserCampus(
+    userId: string,
+  ): Promise<{ campusId: string | null; city: string | null }> {
+    const q = `
+      SELECT u.campus_id as "campusId", c.city as "city"
+      FROM users u
+      LEFT JOIN campuses c ON c.id = u.campus_id
+      WHERE u.id = $1
       LIMIT 1
     `;
-        const { rows } = await this.db.query(q, [userId]);
-        return rows[0] ?? { campusId: null, city: null };
+    const { rows } = await this.db.query(q, [userId]);
+    return rows[0] ?? { campusId: null, city: null };
+  }
+
+  async getFollowedUserIds(userId: string): Promise<string[]> {
+    const q = `SELECT followed_user_id FROM user_follows WHERE follower_user_id = $1`;
+    const { rows } = await this.db.query(q, [userId]);
+    return rows.map((r) => r.followed_user_id);
+  }
+
+  async listInstitutionalNews(params: {
+    limit: number;
+    cursor?: { publishedAtIso: string; id: string };
+  }) {
+    const values: any[] = [params.limit];
+    let where = '';
+    if (params.cursor) {
+      values.push(params.cursor.publishedAtIso, params.cursor.id);
+      where = `WHERE (published_at, id) < ($2::timestamptz, $3::uuid)`;
     }
 
-    async getFollowedUserIds(userId: string): Promise<string[]> {
-        const q = `SELECT followed_user_id FROM user_follows WHERE follower_user_id = $1`;
-        const { rows } = await this.db.query(q, [userId]);
-        return rows.map(r => r.followed_user_id);
-    }
-
-    async listInstitutionalNews(params: {
-        limit: number;
-        cursor?: { publishedAtIso: string; id: string };
-    }) {
-        const values: any[] = [params.limit];
-        let where = '';
-        if (params.cursor) {
-            values.push(params.cursor.publishedAtIso, params.cursor.id);
-            where = `WHERE (published_at, id) < ($2::timestamptz, $3::uuid)`;
-        }
-
-        const q = `
+    const q = `
       SELECT id, title, excerpt, content_html, is_featured,
              published_at as "publishedAt", updated_at as "updatedAt"
       FROM institutional_news
@@ -40,22 +42,22 @@ export class FeedRepo {
       ORDER BY is_featured DESC, published_at DESC, id DESC
       LIMIT $1
     `;
-        const { rows } = await this.db.query(q, values);
-        return rows;
-    }
+    const { rows } = await this.db.query(q, values);
+    return rows;
+  }
 
-    async listCityNews(params: {
-        city: string;
-        limit: number;
-        cursor?: { publishedAtIso: string; id: string };
-    }) {
-        const values: any[] = [params.city, params.limit];
-        let where = `WHERE city = $1`;
-        if (params.cursor) {
-            values.push(params.cursor.publishedAtIso, params.cursor.id);
-            where += ` AND (published_at, id) < ($3::timestamptz, $4::uuid)`;
-        }
-        const q = `
+  async listCityNews(params: {
+    city: string;
+    limit: number;
+    cursor?: { publishedAtIso: string; id: string };
+  }) {
+    const values: any[] = [params.city, params.limit];
+    let where = `WHERE city = $1`;
+    if (params.cursor) {
+      values.push(params.cursor.publishedAtIso, params.cursor.id);
+      where += ` AND (published_at, id) < ($3::timestamptz, $4::uuid)`;
+    }
+    const q = `
       SELECT id, city, title, excerpt, url,
              published_at as "publishedAt", updated_at as "updatedAt"
       FROM city_news
@@ -63,22 +65,22 @@ export class FeedRepo {
       ORDER BY published_at DESC, id DESC
       LIMIT $2
     `;
-        const { rows } = await this.db.query(q, values);
-        return rows;
-    }
+    const { rows } = await this.db.query(q, values);
+    return rows;
+  }
 
-    async listChallenges(params: {
-        limit: number;
-        cursor?: { publishedAtIso: string; id: string };
-    }) {
-        // Adapte si ta table challenge a d’autres noms (dans ton existant, challenges sont déjà là) :contentReference[oaicite:3]{index=3}
-        const values: any[] = [params.limit];
-        let where = '';
-        if (params.cursor) {
-            values.push(params.cursor.publishedAtIso, params.cursor.id);
-            where = `WHERE (created_at, id) < ($2::timestamptz, $3::uuid)`;
-        }
-        const q = `
+  async listChallenges(params: {
+    limit: number;
+    cursor?: { publishedAtIso: string; id: string };
+  }) {
+    // Adapte si ta table challenge a d’autres noms (dans ton existant, challenges sont déjà là) :contentReference[oaicite:3]{index=3}
+    const values: any[] = [params.limit];
+    let where = '';
+    if (params.cursor) {
+      values.push(params.cursor.publishedAtIso, params.cursor.id);
+      where = `WHERE (created_at, id) < ($2::timestamptz, $3::uuid)`;
+    }
+    const q = `
       SELECT id, title, description,
              created_at as "publishedAt", updated_at as "updatedAt"
       FROM challenges
@@ -86,121 +88,133 @@ export class FeedRepo {
       ORDER BY created_at DESC, id DESC
       LIMIT $1
     `;
-        const { rows } = await this.db.query(q, values);
-        return rows;
+    const { rows } = await this.db.query(q, values);
+    return rows;
+  }
+
+  async listMemberPublications(params: {
+    limit: number;
+    includeEvents: boolean;
+    campusIds?: string[];
+    themeIds?: string[];
+    visibilityMode: 'PUBLIC_ONLY' | 'MY_CAMPUS' | 'ALL_CAMPUSES' | 'FOLLOWING';
+    userId?: string;
+    cursor?: { publishedAtIso: string; id: string };
+    followedUserIds?: string[];
+    userCampusId?: string | null;
+  }) {
+    const values: any[] = [];
+    const wheres: string[] = [];
+
+    // Pagination cursor
+    if (params.cursor) {
+      values.push(params.cursor.publishedAtIso, params.cursor.id);
+      wheres.push(
+        `(p.published_at, p.id) < ($${values.length - 1}::timestamptz, $${values.length}::uuid)`,
+      );
     }
 
-    async listMemberPublications(params: {
-        limit: number;
-        includeEvents: boolean;
-        campusIds?: string[];
-        themeIds?: string[];
-        visibilityMode: 'PUBLIC_ONLY' | 'MY_CAMPUS' | 'ALL_CAMPUSES' | 'FOLLOWING';
-        userId?: string;
-        cursor?: { publishedAtIso: string; id: string };
-        followedUserIds?: string[];
-        userCampusId?: string | null;
-    }) {
-        const values: any[] = [];
-        const wheres: string[] = [];
+    // includeEvents
+    if (!params.includeEvents) {
+      wheres.push(`p.type <> 'EVENT'`);
+    }
 
-        // Pagination cursor
-        if (params.cursor) {
-            values.push(params.cursor.publishedAtIso, params.cursor.id);
-            wheres.push(`(p.published_at, p.id) < ($${values.length - 1}::timestamptz, $${values.length}::uuid)`);
+    // Visibility rules selon le filtre
+    const followedIds = params.followedUserIds ?? [];
+    const currentUserId = params.userId;
+
+    switch (params.visibilityMode) {
+      case 'PUBLIC_ONLY':
+        // Publications PUBLIC uniquement
+        // + mes propres publications (toutes visibilités)
+        if (currentUserId) {
+          values.push(currentUserId);
+          wheres.push(
+            `(p.visibility = 'PUBLIC' OR p.author_user_id = $${values.length}::uuid)`,
+          );
+        } else {
+          wheres.push(`p.visibility = 'PUBLIC'`);
         }
+        break;
 
-        // includeEvents
-        if (!params.includeEvents) {
-            wheres.push(`p.type <> 'EVENT'`);
+      case 'MY_CAMPUS':
+        // Publications PUBLIC + CAMPUS_ONLY de mon campus
+        // + mes propres publications (toutes visibilités)
+        if (params.userCampusId) {
+          values.push(params.userCampusId);
+          const campusIdx = values.length;
+
+          if (currentUserId) {
+            values.push(currentUserId);
+            wheres.push(
+              `(p.visibility = 'PUBLIC' OR (p.visibility = 'CAMPUS_ONLY' AND p.campus_id = $${campusIdx}::uuid) OR p.author_user_id = $${values.length}::uuid)`,
+            );
+          } else {
+            wheres.push(
+              `(p.visibility = 'PUBLIC' OR (p.visibility = 'CAMPUS_ONLY' AND p.campus_id = $${campusIdx}::uuid))`,
+            );
+          }
+        } else {
+          // Pas de campus => fallback PUBLIC + mes publications
+          if (currentUserId) {
+            values.push(currentUserId);
+            wheres.push(
+              `(p.visibility = 'PUBLIC' OR p.author_user_id = $${values.length}::uuid)`,
+            );
+          } else {
+            wheres.push(`p.visibility = 'PUBLIC'`);
+          }
         }
+        break;
 
-        // Visibility rules selon le filtre
-        const followedIds = params.followedUserIds ?? [];
-        const currentUserId = params.userId;
-
-        switch (params.visibilityMode) {
-            case 'PUBLIC_ONLY':
-                // Publications PUBLIC uniquement
-                // + mes propres publications (toutes visibilités)
-                if (currentUserId) {
-                    values.push(currentUserId);
-                    wheres.push(`(p.visibility = 'PUBLIC' OR p.author_user_id = $${values.length}::uuid)`);
-                } else {
-                    wheres.push(`p.visibility = 'PUBLIC'`);
-                }
-                break;
-
-            case 'MY_CAMPUS':
-                // Publications PUBLIC + CAMPUS_ONLY de mon campus
-                // + mes propres publications (toutes visibilités)
-                if (params.userCampusId) {
-                    values.push(params.userCampusId);
-                    const campusIdx = values.length;
-
-                    if (currentUserId) {
-                        values.push(currentUserId);
-                        wheres.push(`(p.visibility = 'PUBLIC' OR (p.visibility = 'CAMPUS_ONLY' AND p.campus_id = $${campusIdx}::uuid) OR p.author_user_id = $${values.length}::uuid)`);
-                    } else {
-                        wheres.push(`(p.visibility = 'PUBLIC' OR (p.visibility = 'CAMPUS_ONLY' AND p.campus_id = $${campusIdx}::uuid))`);
-                    }
-                } else {
-                    // Pas de campus => fallback PUBLIC + mes publications
-                    if (currentUserId) {
-                        values.push(currentUserId);
-                        wheres.push(`(p.visibility = 'PUBLIC' OR p.author_user_id = $${values.length}::uuid)`);
-                    } else {
-                        wheres.push(`p.visibility = 'PUBLIC'`);
-                    }
-                }
-                break;
-
-            case 'ALL_CAMPUSES':
-                // Toutes les publications PUBLIC + CAMPUS_ONLY
-                // + mes propres publications (toutes visibilités)
-                if (currentUserId) {
-                    values.push(currentUserId);
-                    wheres.push(`(p.visibility IN ('PUBLIC', 'CAMPUS_ONLY') OR p.author_user_id = $${values.length}::uuid)`);
-                } else {
-                    wheres.push(`p.visibility IN ('PUBLIC', 'CAMPUS_ONLY')`);
-                }
-                break;
-
-            case 'FOLLOWING':
-                // Publications des utilisateurs suivis (toutes visibilités y compris PRIVATE)
-                // + mes propres publications
-                if (currentUserId) {
-                    if (followedIds.length === 0) {
-                        // Aucun abonnement => seulement mes publications
-                        values.push(currentUserId);
-                        wheres.push(`p.author_user_id = $${values.length}::uuid`);
-                    } else {
-                        // Mes abonnements + moi-même
-                        values.push([...followedIds, currentUserId]);
-                        wheres.push(`p.author_user_id = ANY($${values.length}::uuid[])`);
-                    }
-                } else {
-                    // Pas connecté => aucun résultat
-                    wheres.push(`1 = 0`);
-                }
-                break;
+      case 'ALL_CAMPUSES':
+        // Toutes les publications PUBLIC + CAMPUS_ONLY
+        // + mes propres publications (toutes visibilités)
+        if (currentUserId) {
+          values.push(currentUserId);
+          wheres.push(
+            `(p.visibility IN ('PUBLIC', 'CAMPUS_ONLY') OR p.author_user_id = $${values.length}::uuid)`,
+          );
+        } else {
+          wheres.push(`p.visibility IN ('PUBLIC', 'CAMPUS_ONLY')`);
         }
+        break;
 
-        // Filters campusIds/themeIds
-        if (params.campusIds && params.campusIds.length > 0) {
-            values.push(params.campusIds);
-            wheres.push(`p.campus_id = ANY($${values.length}::uuid[])`);
+      case 'FOLLOWING':
+        // Publications des utilisateurs suivis (toutes visibilités y compris PRIVATE)
+        // + mes propres publications
+        if (currentUserId) {
+          if (followedIds.length === 0) {
+            // Aucun abonnement => seulement mes publications
+            values.push(currentUserId);
+            wheres.push(`p.author_user_id = $${values.length}::uuid`);
+          } else {
+            // Mes abonnements + moi-même
+            values.push([...followedIds, currentUserId]);
+            wheres.push(`p.author_user_id = ANY($${values.length}::uuid[])`);
+          }
+        } else {
+          // Pas connecté => aucun résultat
+          wheres.push(`1 = 0`);
         }
-        if (params.themeIds && params.themeIds.length > 0) {
-            values.push(params.themeIds);
-            wheres.push(`p.theme_id = ANY($${values.length}::uuid[])`);
-        }
+        break;
+    }
 
-        const whereSql = wheres.length ? `WHERE ${wheres.join(' AND ')}` : '';
+    // Filters campusIds/themeIds
+    if (params.campusIds && params.campusIds.length > 0) {
+      values.push(params.campusIds);
+      wheres.push(`p.campus_id = ANY($${values.length}::uuid[])`);
+    }
+    if (params.themeIds && params.themeIds.length > 0) {
+      values.push(params.themeIds);
+      wheres.push(`p.theme_id = ANY($${values.length}::uuid[])`);
+    }
 
-        values.push(params.limit);
+    const whereSql = wheres.length ? `WHERE ${wheres.join(' AND ')}` : '';
 
-        const q = `
+    values.push(params.limit);
+
+    const q = `
       SELECT
         p.id,
         p.type,
@@ -230,7 +244,7 @@ export class FeedRepo {
       ORDER BY p.published_at DESC, p.id DESC
       LIMIT $${values.length}
     `;
-        const { rows } = await this.db.query(q, values);
-        return rows;
-    }
+    const { rows } = await this.db.query(q, values);
+    return rows;
+  }
 }

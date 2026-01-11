@@ -1,27 +1,27 @@
-import { query } from "../db";
+import { query } from '../db';
 
 export async function searchUsers(meId: string, q: string) {
-    const like = `%${q.toLowerCase()}%`;
+  const like = `%${q.toLowerCase()}%`;
 
-    // ⚠️ IMPORTANT:
-    // - LEFT JOIN user_profile : sinon les users sans profile ne sortent jamais
-    // - on exclut moi-même
-    // - on filtre les profils PRIVATE (si tu veux qu’ils soient introuvables)
-    // - on renvoie un "publicName" déjà prêt
+  // ⚠️ IMPORTANT:
+  // - LEFT JOIN user_profile : sinon les users sans profile ne sortent jamais
+  // - on exclut moi-même
+  // - on filtre les profils PRIVATE (si tu veux qu’ils soient introuvables)
+  // - on renvoie un "publicName" déjà prêt
 
-    const rows = await query<{
-        id: string;
-        display_name: string;
-        avatar_url: string | null;
-        avatar_text: string | null;
-        first_name: string | null;
-        last_name: string | null;
-        last_name_visibility: "FULL" | "INITIAL" | "HIDDEN" | null;
-        profile_visibility: "CAMPUS" | "PRIVATE" | null;
-        city: string | null;
-        school_line: string | null;
-    }>(
-        `
+  const rows = await query<{
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+    avatar_text: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    last_name_visibility: 'FULL' | 'INITIAL' | 'HIDDEN' | null;
+    profile_visibility: 'CAMPUS' | 'PRIVATE' | null;
+    city: string | null;
+    school_line: string | null;
+  }>(
+    `
     select
       u.id,
       u.display_name,
@@ -47,27 +47,40 @@ export async function searchUsers(meId: string, q: string) {
     order by u.display_name asc
     limit 20
     `,
-        [meId, like]
-    );
+    [meId, like],
+  );
 
-    return rows.map((r) => ({
-        id: r.id,
-        displayName: r.display_name,
-        publicName: buildPublicName(r.display_name, r.first_name, r.last_name, r.last_name_visibility),
-        avatarUrl: r.avatar_url,
-        avatarText: r.avatar_text,
-        city: r.city ?? "",
-        schoolLine: r.school_line ?? "",
-    }));
+  return rows.map((r) => ({
+    id: r.id,
+    displayName: r.display_name,
+    publicName: buildPublicName(
+      r.display_name,
+      r.first_name,
+      r.last_name,
+      r.last_name_visibility,
+    ),
+    avatarUrl: r.avatar_url,
+    avatarText: r.avatar_text,
+    city: r.city ?? '',
+    schoolLine: r.school_line ?? '',
+  }));
 }
 
-function buildPublicName(displayName: string, fn?: string | null, ln?: string | null, vis?: any) {
-    const firstName = (fn ?? "").trim();
-    const lastName = (ln ?? "").trim();
+function buildPublicName(
+  displayName: string,
+  fn?: string | null,
+  ln?: string | null,
+  vis?: any,
+) {
+  const firstName = (fn ?? '').trim();
+  const lastName = (ln ?? '').trim();
 
-    if (!firstName && !lastName) return displayName;
+  if (!firstName && !lastName) return displayName;
 
-    if (vis === "HIDDEN") return firstName || displayName;
-    if (vis === "INITIAL") return lastName ? `${firstName} ${lastName[0].toUpperCase()}.`.trim() : (firstName || displayName);
-    return `${firstName} ${lastName}`.trim();
+  if (vis === 'HIDDEN') return firstName || displayName;
+  if (vis === 'INITIAL')
+    return lastName
+      ? `${firstName} ${lastName[0].toUpperCase()}.`.trim()
+      : firstName || displayName;
+  return `${firstName} ${lastName}`.trim();
 }

@@ -14,6 +14,16 @@ import { useFlashStore } from "@/stores/flash";
 const router = useRouter();
 const auth = useAuthStore();
 
+// Onglet actif pour la navigation principale
+type FeedTab = 'news' | 'publications' | 'local';
+const activeTab = ref<FeedTab>('publications');
+
+const tabOptions: { value: FeedTab; label: string; icon: string }[] = [
+  { value: 'news', label: 'Actualités', icon: '📰' },
+  { value: 'publications', label: 'Publications', icon: '✨' },
+  { value: 'local', label: 'Autour de vous', icon: '📍' },
+];
+
 // États
 const loading = ref(true);
 const institutionalNews = ref<NewsItem[]>([]);
@@ -58,6 +68,21 @@ const composer = ref({
   eventEndAt: "",
 });
 
+// Report modal
+const openReportModal = ref(false);
+const reportingPost = ref<PostItem | null>(null);
+const reportReason = ref("");
+const reportCategory = ref<"inappropriate" | "spam" | "harassment" | "misinformation" | "other">("inappropriate");
+const reportSubmitting = ref(false);
+
+const reportCategories = [
+  { value: "inappropriate", label: "Contenu inapproprié", icon: "🚫" },
+  { value: "spam", label: "Spam / Publicité", icon: "📢" },
+  { value: "harassment", label: "Harcèlement", icon: "⚠️" },
+  { value: "misinformation", label: "Désinformation", icon: "❌" },
+  { value: "other", label: "Autre", icon: "📝" },
+];
+
 type FeedResponse = {
   institutionalNews: NewsItem[];
   memberPosts: PostItem[];
@@ -65,7 +90,6 @@ type FeedResponse = {
 };
 
 function formatNewsTime(iso: string): string {
-  // On garde une string "relative" simple pour coller au style de ton mock
   const date = new Date(iso);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
@@ -85,7 +109,6 @@ function formatNewsTime(iso: string): string {
 async function loadFeed() {
   loading.value = true;
   try {
-    // Construire l'URL avec le filtre si connecté
     const params = new URLSearchParams();
     if (!isGuest.value) {
       params.set('filter', activeFilter.value);
@@ -94,10 +117,9 @@ async function loadFeed() {
 
     const data = await apiRequest<FeedResponse>(url, {
       method: "GET",
-      token: auth.token, // null si invité => ok
+      token: auth.token,
     });
 
-    // IMPORTANT: on mappe publishedAt ISO -> string affichable
     institutionalNews.value = (data.institutionalNews ?? []).map((n) => ({
       ...n,
       publishedAt: n.publishedAt ? formatNewsTime(n.publishedAt) : n.publishedAt,
@@ -105,7 +127,6 @@ async function loadFeed() {
 
     memberPosts.value = (data.memberPosts ?? []).map((p) => ({
       ...p,
-      // FeedPostCard attend ISO et gère lui-même le relatif => on laisse ISO
       publishedAt: p.publishedAt,
     }));
 
@@ -115,7 +136,6 @@ async function loadFeed() {
     }));
   } catch (e: any) {
     console.error("Feed load error:", e);
-    // Tu peux brancher un toast ici si tu as un système
     institutionalNews.value = [];
     memberPosts.value = [];
     cityNews.value = [];
@@ -124,7 +144,6 @@ async function loadFeed() {
   }
 }
 
-// Recharger le feed quand le filtre change
 watch(activeFilter, () => {
   loadFeed();
 });
@@ -136,11 +155,9 @@ onMounted(async () => {
   flash.showWelcome(isGuest.value);
 });
 
-
 // Actions
 function handleNewsClick(news: NewsItem) {
   console.log("News clicked:", news.id);
-  // router.push(`/app/news/${news.id}`);
 }
 
 function handlePostLike(post: PostItem) {
@@ -156,7 +173,6 @@ function handlePostLike(post: PostItem) {
 
 function handlePostComment(post: PostItem) {
   console.log("Comment on post:", post.id);
-  // router.push(`/app/posts/${post.id}#comments`);
 }
 
 function handleAuthorClick(post: PostItem) {
@@ -167,33 +183,44 @@ function handleCityNewsClick(news: CityNewsItem) {
   console.log("City news clicked:", news.id);
 }
 
-function handleSeeAllNews() {
-  console.log("See all news");
-  // router.push("/app/news");
-}
-
-function handleSeeAllPosts() {
-  console.log("See all posts");
-  // router.push("/app/posts");
-}
-
-function handleSeeAllCityNews() {
-  console.log("See all city news");
-  // router.push("/app/city-news");
-}
-
 async function handlePostReport(post: PostItem) {
-  const reason = window.prompt("Pourquoi signalez-vous cette publication ? (optionnel)") ?? null;
+  reportingPost.value = post;
+  reportReason.value = "";
+  reportCategory.value = "inappropriate";
+  openReportModal.value = true;
+}
 
+function cancelReport() {
+  openReportModal.value = false;
+  reportingPost.value = null;
+  reportReason.value = "";
+  reportCategory.value = "inappropriate";
+}
+
+async function submitReport() {
+  if (!reportingPost.value) return;
+
+  reportSubmitting.value = true;
   try {
-    await apiRequest(`/publications/${post.id}/report`, {
+    const fullReason = `[${reportCategories.find(c => c.value === reportCategory.value)?.label}] ${reportReason.value.trim()}`.trim();
+
+    await apiRequest(`/publications/${reportingPost.value.id}/report`, {
       method: "POST",
-      token: auth.token, // null si invité => ok
-      body: { reason: reason?.trim() ? reason.trim() : null },
+      token: auth.token,
+      body: {
+        reason: fullReason || null,
+        category: reportCategory.value
+      },
     });
-    console.log("Report sent for post:", post.id);
+
+flash.show("Publication signalée avec succès", "success");
+
+    cancelReport();
   } catch (e) {
     console.error("Report failed:", e);
+    flash.show("Erreur lors du signalement", "error");
+  } finally {
+    reportSubmitting.value = false;
   }
 }
 
@@ -226,9 +253,7 @@ async function submitPublication() {
       eventEndAt: "",
     };
 
-    // recharge le feed
     await loadFeed();
-
     flash.show("Publication créée avec succès !", "success");
   } catch (e: any) {
     console.error(e);
@@ -237,32 +262,43 @@ async function submitPublication() {
 }
 
 function toIsoFromLocal(v: string) {
-  // datetime-local => ISO
   if (!v) return null;
   return new Date(v).toISOString();
 }
-
 </script>
 
 <template>
   <div class="feed-page">
+    <!-- Navigation par onglets -->
+    <nav class="feed-tabs">
+      <button
+        v-for="tab in tabOptions"
+        :key="tab.value"
+        class="tab-btn"
+        :class="{ active: activeTab === tab.value }"
+        @click="activeTab = tab.value"
+      >
+        <span class="tab-icon">{{ tab.icon }}</span>
+        <span class="tab-label">{{ tab.label }}</span>
+      </button>
+    </nav>
+
     <!-- Loading state -->
     <div v-if="loading" class="loading">
       <div class="loading-spinner"></div>
-      <p>Chargement du feed...</p>
+      <p>Chargement...</p>
     </div>
 
     <template v-else>
-      <!-- Section 1: Actualités MediaSchool (priorité haute) -->
-      <section class="feed-section">
+      <!-- TAB 1: Actualités MediaSchool -->
+      <section v-if="activeTab === 'news'" class="feed-section">
         <FeedSectionHeader
           title="Actualités MediaSchool"
           icon="🎓"
-          action-label="Tout voir"
-          @action="handleSeeAllNews"
         />
+        <p class="section-subtitle">Journal Stratégie • CNews</p>
 
-        <div class="news-scroll">
+        <div class="news-list">
           <FeedNewsCard
             v-for="news in institutionalNews"
             :key="news.id"
@@ -274,17 +310,15 @@ function toIsoFromLocal(v: string) {
         <EmptyState
           v-if="institutionalNews.length === 0"
           title="Pas d'actualités"
-          description="Aucune actualité pour le moment."
+          description="Aucune actualité MediaSchool pour le moment."
         />
       </section>
 
-      <!-- Section 2: Publications des membres -->
-      <section class="feed-section">
+      <!-- TAB 2: Publications des membres -->
+      <section v-if="activeTab === 'publications'" class="feed-section">
         <FeedSectionHeader
           :title="postsTitle"
           icon="✨"
-          action-label="Tout voir"
-          @action="handleSeeAllPosts"
         />
 
         <!-- Filtres (uniquement si connecté) -->
@@ -307,6 +341,7 @@ function toIsoFromLocal(v: string) {
           </button>
         </div>
 
+        <!-- Modal de publication -->
         <div v-if="openComposer" class="modal-backdrop" @click.self="openComposer=false">
           <div class="modal">
             <h3>Nouvelle publication</h3>
@@ -364,6 +399,52 @@ function toIsoFromLocal(v: string) {
           </div>
         </div>
 
+        <!-- Modal de signalement -->
+        <div v-if="openReportModal" class="modal-backdrop" @click.self="cancelReport">
+          <div class="modal report-modal">
+            <h3>🚩 Signaler la publication</h3>
+            <p class="report-subtitle">Aidez-nous à maintenir une communauté saine.</p>
+
+            <div class="field">
+              <span>Catégorie du signalement</span>
+              <div class="report-categories">
+                <button
+                  v-for="cat in reportCategories"
+                  :key="cat.value"
+                  type="button"
+                  class="report-category-btn"
+                  :class="{ active: reportCategory === cat.value }"
+                  @click="reportCategory = cat.value as typeof reportCategory"
+                >
+                  <span class="category-icon">{{ cat.icon }}</span>
+                  <span class="category-label">{{ cat.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <label class="field">
+              <span>Détails supplémentaires (optionnel)</span>
+              <textarea
+                v-model="reportReason"
+                rows="3"
+                placeholder="Décrivez le problème en quelques mots..."
+              ></textarea>
+            </label>
+
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" @click="cancelReport">Annuler</button>
+              <button
+                type="button"
+                class="btn-danger"
+                :disabled="reportSubmitting"
+                @click="submitReport"
+              >
+                {{ reportSubmitting ? 'Envoi...' : 'Signaler' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Info pour invités -->
         <div v-if="isGuest" class="guest-info">
           <span class="info-icon">ℹ️</span>
@@ -372,13 +453,13 @@ function toIsoFromLocal(v: string) {
 
         <div class="posts-list">
           <FeedPostCard
-              v-for="post in memberPosts"
-              :key="post.id"
-              :post="post"
-              @like="handlePostLike(post)"
-              @comment="handlePostComment(post)"
-              @author-click="handleAuthorClick(post)"
-              @report="handlePostReport(post)"
+            v-for="post in memberPosts"
+            :key="post.id"
+            :post="post"
+            @like="handlePostLike(post)"
+            @comment="handlePostComment(post)"
+            @author-click="handleAuthorClick(post)"
+            @report="handlePostReport(post)"
           />
         </div>
 
@@ -391,14 +472,13 @@ function toIsoFromLocal(v: string) {
         />
       </section>
 
-      <!-- Section 3: Actualités de la ville -->
-      <section class="feed-section">
+      <!-- TAB 3: Actualités de la ville -->
+      <section v-if="activeTab === 'local'" class="feed-section">
         <FeedSectionHeader
           title="Autour de vous"
           icon="📍"
-          action-label="Plus"
-          @action="handleSeeAllCityNews"
         />
+        <p class="section-subtitle">Actualités de votre ville</p>
 
         <div class="city-news-list">
           <FeedCityNewsCard
@@ -422,11 +502,63 @@ function toIsoFromLocal(v: string) {
 <style scoped>
 .feed-page {
   padding: 18px;
-  padding-bottom: 100px; /* Espace pour la bottom nav */
+  padding-bottom: 100px;
   max-width: 680px;
   margin: 0 auto;
   background: linear-gradient(180deg, rgba(245, 245, 247, 1) 0%, rgba(250, 250, 252, 1) 100%);
   min-height: 100vh;
+}
+
+/* Navigation par onglets */
+.feed-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 4px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: rgba(0, 0, 0, 0.7);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.tab-btn.active {
+  background: white;
+  color: #355c49;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tab-icon {
+  font-size: 16px;
+}
+
+.tab-label {
+  font-size: 12px;
+}
+
+@media (min-width: 400px) {
+  .tab-label {
+    font-size: 13px;
+  }
 }
 
 /* Loading */
@@ -458,26 +590,18 @@ function toIsoFromLocal(v: string) {
   margin-bottom: 28px;
 }
 
-/* News horizontal scroll */
-.news-scroll {
+.section-subtitle {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.5);
+  margin: -8px 0 16px;
+  padding-left: 2px;
+}
+
+/* News list (vertical pour l'onglet dédié) */
+.news-list {
   display: flex;
+  flex-direction: column;
   gap: 14px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  margin: 0 -18px;
-  padding-left: 18px;
-  padding-right: 18px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-
-.news-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.news-scroll > * {
-  flex: 0 0 min(320px, 85vw);
-  scroll-snap-align: start;
 }
 
 /* Posts list */
@@ -569,57 +693,152 @@ function toIsoFromLocal(v: string) {
     padding: 24px;
     padding-bottom: 120px;
   }
-
-  .news-scroll {
-    margin: 0;
-    padding-left: 0;
-    padding-right: 0;
-  }
-
-  .news-scroll > * {
-    flex: 0 0 340px;
-  }
 }
 
-.publish-btn{
+.publish-btn {
   padding: 10px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(53,92,73,0.25);
-  background: rgba(53,92,73,0.08);
+  border: 1px solid rgba(53, 92, 73, 0.25);
+  background: rgba(53, 92, 73, 0.08);
   color: #355c49;
   font-weight: 800;
   cursor: pointer;
 }
-.publish-btn:hover{ background: rgba(53,92,73,0.12); }
 
-.modal-backdrop{
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.25);
-  display:flex; align-items:center; justify-content:center;
+.publish-btn:hover {
+  background: rgba(53, 92, 73, 0.12);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 18px;
   z-index: 50;
 }
-.modal{
+
+.modal {
   width: min(520px, 100%);
   background: white;
   border-radius: 18px;
   padding: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
-.field{ display:flex; flex-direction:column; gap:6px; margin: 12px 0; }
-.field span{ font-size: 12px; opacity: .7; font-weight: 700; }
-.field textarea, .field input, .field select{
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.field span {
+  font-size: 12px;
+  opacity: 0.7;
+  font-weight: 700;
+}
+
+.field textarea,
+.field input,
+.field select {
   border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.12);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   padding: 10px 12px;
 }
-.modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top: 14px; }
-.btn-primary{
-  padding: 10px 14px; border-radius: 12px; border:none;
-  background:#355c49; color:white; font-weight:800; cursor:pointer;
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
 }
-.btn-secondary{
-  padding: 10px 14px; border-radius: 12px;
-  border:1px solid rgba(0,0,0,0.12); background:white; font-weight:800; cursor:pointer;
+
+.btn-primary {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  background: #355c49;
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* Report modal styles */
+.report-modal h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.report-subtitle {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.report-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.report-category-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.report-category-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.report-category-btn.active {
+  background: rgba(220, 40, 70, 0.1);
+  border-color: rgba(220, 40, 70, 0.3);
+  color: rgba(200, 30, 60, 0.95);
+}
+
+.category-icon {
+  font-size: 14px;
+}
+
+.btn-danger {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(220, 40, 70, 0.95);
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: rgba(200, 30, 60, 0.95);
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

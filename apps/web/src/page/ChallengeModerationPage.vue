@@ -215,6 +215,7 @@ function ensureDraft(challengeId: string, podiumSize: number) {
 function hydrateDraftFromExistingWinners(challengeId: string, podiumSize: number, winners: JudgingWinner[]) {
   ensureDraft(challengeId, podiumSize);
   const draft = winnersDraft.value[challengeId];
+  if (!draft) return;
   for (const line of draft) {
     const w = winners.find(x => x.rank === line.rank);
     if (!w) continue;
@@ -228,7 +229,8 @@ function participantLabel(p: JudgingParticipant) {
   return p.team_name ?? p.team_id ?? "Équipe";
 }
 
-function submissionForParticipant(bundle: JudgingBundle, p: JudgingParticipant) {
+function submissionForParticipant(bundle: JudgingBundle | undefined, p: JudgingParticipant) {
+  if (!bundle) return null;
   if (p.participant_type === "USER" && p.user_id) {
     return bundle.submissions.find(s => s.participant_type === "USER" && s.user_id === p.user_id) ?? null;
   }
@@ -236,6 +238,10 @@ function submissionForParticipant(bundle: JudgingBundle, p: JudgingParticipant) 
     return bundle.submissions.find(s => s.participant_type === "TEAM" && s.team_id === p.team_id) ?? null;
   }
   return null;
+}
+
+function getBundle(challengeId: string): JudgingBundle | undefined {
+  return judgingBundles.value[challengeId];
 }
 
 async function loadJudgingBundle(challengeId: string) {
@@ -530,14 +536,14 @@ onMounted(async () => {
             </button>
           </div>
 
-          <div v-if="judgingBundles[c.id]" style="margin-top: 12px;">
+          <div v-if="getBundle(c.id)" style="margin-top: 12px;">
             <div style="font-weight:900; color: rgba(0,0,0,0.70); margin-bottom: 6px;">
-              Participants ({{ judgingBundles[c.id].participants.length }}) & soumissions
+              Participants ({{ getBundle(c.id)!.participants.length }}) & soumissions
             </div>
 
             <div style="display:flex; flex-direction:column; gap:10px;">
               <div
-                  v-for="p in judgingBundles[c.id].participants"
+                  v-for="p in getBundle(c.id)!.participants"
                   :key="(p.participant_type==='USER' ? p.user_id : p.team_id) ?? p.registered_at"
                   style="border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 10px 12px;"
               >
@@ -555,10 +561,10 @@ onMounted(async () => {
                 </div>
 
                 <div style="margin-top: 8px; color: rgba(0,0,0,0.65); font-weight:800; font-size: 12px;">
-                  <template v-if="submissionForParticipant(judgingBundles[c.id], p)">
+                  <template v-if="submissionForParticipant(getBundle(c.id), p)">
                     <div style="margin-top: 6px; font-weight:900; color: rgba(0,0,0,0.70);">Soumission :</div>
                     <div style="white-space:pre-wrap; font-weight:700;">
-                      {{ submissionForParticipant(judgingBundles[c.id], p)?.content || "—" }}
+                      {{ submissionForParticipant(getBundle(c.id), p)?.content || "—" }}
                     </div>
                   </template>
                   <template v-else>
@@ -571,7 +577,7 @@ onMounted(async () => {
             <!-- Podium selection -->
             <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.08);">
               <div style="font-weight:900; color: rgba(0,0,0,0.75); margin-bottom: 6px;">
-                Podium ({{ judgingBundles[c.id].challenge.participation_mode === "TEAM" ? "Équipes" : "Utilisateurs" }})
+                Podium ({{ getBundle(c.id)!.challenge.participation_mode === "TEAM" ? "Équipes" : "Utilisateurs" }})
               </div>
 
               <div v-if="winnersDraft[c.id]" style="display:flex; flex-direction:column; gap:10px;">
@@ -583,13 +589,13 @@ onMounted(async () => {
                   <div style="font-weight:900;">#{{ line.rank }}</div>
 
                   <select
-                      v-if="judgingBundles[c.id].challenge.participation_mode === 'SOLO'"
+                      v-if="getBundle(c.id)!.challenge.participation_mode === 'SOLO'"
                       v-model="line.userId"
                       style="height:40px; border-radius:12px; padding:0 12px; border:1px solid rgba(0,0,0,0.12); font-weight:800;"
                   >
                     <option value="" disabled>Choisir un utilisateur…</option>
                     <option
-                        v-for="p in judgingBundles[c.id].participants.filter(x => x.participant_type==='USER' && x.user_id)"
+                        v-for="p in getBundle(c.id)!.participants.filter(x => x.participant_type==='USER' && x.user_id)"
                         :key="p.user_id!"
                         :value="p.user_id!"
                     >
@@ -604,7 +610,7 @@ onMounted(async () => {
                   >
                     <option value="" disabled>Choisir une équipe…</option>
                     <option
-                        v-for="p in judgingBundles[c.id].participants.filter(x => x.participant_type==='TEAM' && x.team_id)"
+                        v-for="p in getBundle(c.id)!.participants.filter(x => x.participant_type==='TEAM' && x.team_id)"
                         :key="p.team_id!"
                         :value="p.team_id!"
                     >
@@ -624,13 +630,13 @@ onMounted(async () => {
                   </button>
                 </div>
 
-                <div v-if="judgingBundles[c.id].winners?.length" style="margin-top: 10px; color: rgba(0,0,0,0.55); font-weight:800; font-size: 12px;">
+                <div v-if="getBundle(c.id)?.winners?.length" style="margin-top: 10px; color: rgba(0,0,0,0.55); font-weight:800; font-size: 12px;">
                   Winners existants détectés : le podium a été pré-rempli.
                 </div>
               </div>
 
               <div v-else style="color: rgba(0,0,0,0.60); font-weight:800; font-size: 12px;">
-                (Draft non initialisé — clique “Charger”)
+                (Draft non initialisé — clique "Charger")
               </div>
             </div>
           </div>

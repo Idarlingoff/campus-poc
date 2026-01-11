@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { apiRequest } from "@/services/api";
+
+type Campus = {
+  id: string;
+  name: string;
+  city: string;
+};
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -10,8 +17,22 @@ const displayName = ref("");
 const email = ref("");
 const password = ref("");
 const confirmPassword = ref("");
+const selectedCampusId = ref<string | null>(null);
+const campuses = ref<Campus[]>([]);
+const loadingCampuses = ref(false);
 
 const error = ref<string | null>(null);
+
+onMounted(async () => {
+  loadingCampuses.value = true;
+  try {
+    campuses.value = await apiRequest<Campus[]>("/auth/campuses");
+  } catch (e) {
+    console.error("Failed to load campuses", e);
+  } finally {
+    loadingCampuses.value = false;
+  }
+});
 
 const isEmailValid = computed(() => {
   const v = email.value.trim();
@@ -57,6 +78,7 @@ async function submit() {
       displayName: dn,
       email: em,
       password: pw,
+      campusId: selectedCampusId.value,
     });
 
     router.replace("/app/feed");
@@ -86,6 +108,16 @@ function goBack() {
     <label class="field">
       <span>Email</span>
       <input v-model="email" type="email" placeholder="prenom.nom@..." />
+    </label>
+
+    <label class="field">
+      <span>Campus</span>
+      <select v-model="selectedCampusId" :disabled="loadingCampuses">
+        <option :value="null">-- Sélectionner un campus --</option>
+        <option v-for="campus in campuses" :key="campus.id" :value="campus.id">
+          {{ campus.name }}
+        </option>
+      </select>
     </label>
 
     <label class="field">
@@ -149,6 +181,25 @@ h2{ margin: 0 0 6px; }
 
 .field input:focus{
   border-color: rgba(170,30,85,0.45);
+}
+
+.field select{
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  outline: none;
+  background: white;
+  cursor: pointer;
+}
+
+.field select:focus{
+  border-color: rgba(170,30,85,0.45);
+}
+
+.field select:disabled{
+  background: rgba(0,0,0,0.05);
+  cursor: not-allowed;
 }
 
 .primary{

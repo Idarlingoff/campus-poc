@@ -14,7 +14,7 @@ import ProfilePage from "../page/ProfilePage.vue";
 import ProfileEditPage from "../page/ProfileEditPage.vue"
 import ChallengesPage from "../page/ChallengesPage.vue";
 import ProposeChallengePage from "../page/ProposeChallengePage.vue";
-import ChallengeModerationPage from "../page/ChallengeModerationPage.vue";
+import AdminModerationPage from "../page/AdminModerationPage.vue";
 import ChallengeDetailPage from "../page/ChallengeDetailPage.vue";
 import UserProfilePage from "../page/UserProfilePage.vue";
 
@@ -48,7 +48,7 @@ const routes: RouteRecordRaw[] = [
             { path: "feed", name: "feed", component: FeedPage },
             { path: "", redirect: "/app/feed" },
             { path: "propose", name: "propose", component: ProposeChallengePage },
-            { path: "moderation", name: "moderation", component: ChallengeModerationPage, meta: { requiresAuth: true, requiresPerm: "challenges:moderate" } },
+            { path: "moderation", name: "moderation", component: AdminModerationPage, meta: { requiresAuth: true, requiresPerm: "challenges:moderate" } },
             { path: "challenges", name: "challenges", component: ChallengesPage },
             { path: "challenges/:id", name: "challenge-detail", component: ChallengeDetailPage },
             { path: "profile", name: "profile", component: ProfilePage },

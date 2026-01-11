@@ -23,7 +23,7 @@ export async function createUser(params: {
   email: string;
   password: string;
   displayName: string;
-  roleCode: string; // ex: "student" | "external"
+  roleCode: string;
   campusId?: string | null;
 }): Promise<{ id: string; email: string; displayName: string }> {
   const email = params.email.toLowerCase().trim();

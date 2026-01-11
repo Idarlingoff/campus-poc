@@ -73,7 +73,6 @@ export class FeedRepo {
     limit: number;
     cursor?: { publishedAtIso: string; id: string };
   }) {
-    // Adapte si ta table challenge a d’autres noms (dans ton existant, challenges sont déjà là) :contentReference[oaicite:3]{index=3}
     const values: any[] = [params.limit];
     let where = '';
     if (params.cursor) {
@@ -106,7 +105,6 @@ export class FeedRepo {
     const values: any[] = [];
     const wheres: string[] = [];
 
-    // Pagination cursor
     if (params.cursor) {
       values.push(params.cursor.publishedAtIso, params.cursor.id);
       wheres.push(
@@ -114,19 +112,15 @@ export class FeedRepo {
       );
     }
 
-    // includeEvents
     if (!params.includeEvents) {
       wheres.push(`p.type <> 'EVENT'`);
     }
 
-    // Visibility rules selon le filtre
     const followedIds = params.followedUserIds ?? [];
     const currentUserId = params.userId;
 
     switch (params.visibilityMode) {
       case 'PUBLIC_ONLY':
-        // Publications PUBLIC uniquement
-        // + mes propres publications (toutes visibilités)
         if (currentUserId) {
           values.push(currentUserId);
           wheres.push(
@@ -138,8 +132,6 @@ export class FeedRepo {
         break;
 
       case 'MY_CAMPUS':
-        // Publications PUBLIC + CAMPUS_ONLY de mon campus
-        // + mes propres publications (toutes visibilités)
         if (params.userCampusId) {
           values.push(params.userCampusId);
           const campusIdx = values.length;
@@ -155,7 +147,6 @@ export class FeedRepo {
             );
           }
         } else {
-          // Pas de campus => fallback PUBLIC + mes publications
           if (currentUserId) {
             values.push(currentUserId);
             wheres.push(
@@ -168,8 +159,6 @@ export class FeedRepo {
         break;
 
       case 'ALL_CAMPUSES':
-        // Toutes les publications PUBLIC + CAMPUS_ONLY
-        // + mes propres publications (toutes visibilités)
         if (currentUserId) {
           values.push(currentUserId);
           wheres.push(
@@ -181,26 +170,20 @@ export class FeedRepo {
         break;
 
       case 'FOLLOWING':
-        // Publications des utilisateurs suivis (toutes visibilités y compris PRIVATE)
-        // + mes propres publications
         if (currentUserId) {
           if (followedIds.length === 0) {
-            // Aucun abonnement => seulement mes publications
             values.push(currentUserId);
             wheres.push(`p.author_user_id = $${values.length}::uuid`);
           } else {
-            // Mes abonnements + moi-même
             values.push([...followedIds, currentUserId]);
             wheres.push(`p.author_user_id = ANY($${values.length}::uuid[])`);
           }
         } else {
-          // Pas connecté => aucun résultat
           wheres.push(`1 = 0`);
         }
         break;
     }
 
-    // Filters campusIds/themeIds
     if (params.campusIds && params.campusIds.length > 0) {
       values.push(params.campusIds);
       wheres.push(`p.campus_id = ANY($${values.length}::uuid[])`);

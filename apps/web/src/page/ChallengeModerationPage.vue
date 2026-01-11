@@ -93,16 +93,13 @@ const tab = ref<Tab>("STATUS");
 const statusFilter = ref<Challenge["status"]>("PENDING");
 const phaseFilter = ref<Challenge["phase"]>("REGISTRATION");
 
-// Reject UI
 const rejectOpenId = ref<string | null>(null);
 const rejectReason = ref("");
 
-// Judging UI
 const judgingLoadingId = ref<string | null>(null);
 const judgingErrorId = ref<string | null>(null);
 const judgingBundles = ref<Record<string, JudgingBundle>>({});
 
-// Winners draft by challenge id
 const winnersDraft = ref<Record<string, WinnerDraftLine[]>>({});
 
 function fmtCategory(v: string) {
@@ -307,9 +304,6 @@ async function submitWinners(challengeId: string) {
     // reload list + refresh bundle (phase FINISHED)
     await loadAll();
     if (tab.value === "JUDGING") {
-      // On peut recharger le bundle pour afficher winners/phase updated (si ton endpoint l’autorise)
-      // Si ton endpoint bloque hors JUDGING, commente la ligne suivante.
-      // await loadJudgingBundle(challengeId);
     }
 
     alert("Gagnants enregistrés ✅");

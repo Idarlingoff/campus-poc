@@ -10,9 +10,6 @@ export const adminRouter = Router();
 const publicationsRepo = new PublicationsRepo(pool);
 const publicationsService = new PublicationsService(publicationsRepo);
 
-/**
- * Liste les publications signalées
- */
 adminRouter.get(
   '/publications/reports',
   authJwt,
@@ -28,9 +25,6 @@ adminRouter.get(
   },
 );
 
-/**
- * Rejeter un signalement (le signalement est supprimé mais la publication reste)
- */
 adminRouter.post(
   '/publications/reports/:reportId/dismiss',
   authJwt,
@@ -46,9 +40,6 @@ adminRouter.post(
   },
 );
 
-/**
- * Supprimer une publication (par un admin/modérateur)
- */
 adminRouter.delete(
   '/publications/:publicationId',
   authJwt,
@@ -64,9 +55,6 @@ adminRouter.delete(
   },
 );
 
-/**
- * Ajoute un rôle à un user (ici bde)
- */
 adminRouter.post(
   '/users/:id/roles/bde',
   authJwt,
@@ -90,9 +78,6 @@ adminRouter.post(
   },
 );
 
-/**
- * Retire le rôle bde
- */
 adminRouter.delete(
   '/users/:id/roles/bde',
   authJwt,

@@ -74,7 +74,7 @@ export class PublicationsRepo {
     }
     fields.push(`updated_at = now()`);
 
-    if (fields.length === 1) return; // only updated_at would be present
+    if (fields.length === 1) return;
 
     const q = `
       UPDATE publications

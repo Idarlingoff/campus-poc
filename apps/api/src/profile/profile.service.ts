@@ -4,34 +4,29 @@ type LastNameVisibility = 'FULL' | 'INITIAL' | 'HIDDEN';
 type ProfileVisibility = 'CAMPUS' | 'PRIVATE';
 
 type ProfilePatch = {
-  // users
   displayName?: string;
 
-  // identity (user_profile)
   firstName?: string;
   lastName?: string;
   lastNameVisibility?: LastNameVisibility;
 
-  birthDate?: string | null; // YYYY-MM-DD
+  birthDate?: string | null;
   showEmail?: boolean;
   showBirthDate?: boolean;
   showAge?: boolean;
 
   profileVisibility?: ProfileVisibility;
 
-  // socials
   showSocials?: boolean;
   instagramHandle?: string;
   linkedinUrl?: string;
   websiteUrl?: string;
 
-  // campus / misc
   bio?: string;
   city?: string;
   schoolLine?: string;
   sinceDate?: string;
 
-  // avatar
   avatarText?: string;
   avatarUrl?: string | null;
 };
@@ -198,7 +193,6 @@ export async function getMyProfile(userId: string) {
 
   const age = computeAge(p?.birth_date ?? null);
 
-  // follow counts for own profile
   const followCounts = await getFollowCounts(userId);
 
   return {
@@ -253,7 +247,7 @@ export async function getMyProfile(userId: string) {
     follow: {
       followersCount: followCounts.followers,
       followingCount: followCounts.following,
-      isFollowing: false, // not applicable for own profile
+      isFollowing: false,
     },
 
     badges: badgeRows.map((b) => ({
@@ -274,7 +268,6 @@ export async function getMyProfile(userId: string) {
 }
 
 export async function patchMyProfile(userId: string, patch: ProfilePatch) {
-  // ---- normalize ----
   const dn =
     patch.displayName !== undefined
       ? String(patch.displayName).trim()
@@ -333,7 +326,6 @@ export async function patchMyProfile(userId: string, patch: ProfilePatch) {
       ? String(patch.websiteUrl).trim()
       : undefined;
 
-  // ---- validations (align with front) ----
   if (dn !== undefined) {
     if (dn.length < 2) throw new Error('displayName too short');
     if (dn.length > 40) throw new Error('displayName too long');
@@ -385,7 +377,6 @@ export async function patchMyProfile(userId: string, patch: ProfilePatch) {
   )
     throw new Error('profileVisibility invalid');
 
-  // ---- update users ----
   if (dn !== undefined) {
     await query(
       `update users set display_name=$2, updated_at=now() where id=$1`,
@@ -393,7 +384,6 @@ export async function patchMyProfile(userId: string, patch: ProfilePatch) {
     );
   }
 
-  // ---- upsert user_profile (all fields) ----
   const hasAnyProfileField =
     firstName !== undefined ||
     lastName !== undefined ||
@@ -415,7 +405,6 @@ export async function patchMyProfile(userId: string, patch: ProfilePatch) {
     websiteUrl !== undefined;
 
   if (hasAnyProfileField) {
-    // convention: "" => NULL (efface)
     const birthDateDb =
       birthDate === undefined ? null : birthDate === '' ? null : birthDate;
 
@@ -482,7 +471,7 @@ export async function patchMyProfile(userId: string, patch: ProfilePatch) {
         emptyToNull(sinceDate),
 
         emptyToNull(avatarText),
-        avatarUrl === undefined ? null : avatarUrl, // null allowed for removing image
+        avatarUrl === undefined ? null : avatarUrl,
 
         birthDateDb,
 
@@ -620,8 +609,6 @@ export async function searchProfiles(
 ) {
   const needle = `%${q.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
 
-  // ✅ On ne renvoie que des profils "CAMPUS" + soi-même
-  // ✅ isFollowing inclus (utile bouton)
   const rows = await query<{
     id: string;
     display_name: string;
@@ -708,10 +695,6 @@ export async function searchProfiles(
   };
 }
 
-/**
- * ✅ Profil d'un autre user (page /users/:id)
- * Respect de profileVisibility
- */
 export async function getProfileById(viewerId: string, targetId: string) {
   const users = await query<{
     id: string;
@@ -768,7 +751,6 @@ export async function getProfileById(viewerId: string, targetId: string) {
     throw err;
   }
 
-  // follows counts + isFollowing
   const [followersRow] = await query<{ c: number }>(
     `select count(*)::int as c from user_follows where followed_user_id = $1`,
     [targetId],
@@ -830,10 +812,8 @@ export async function getProfileById(viewerId: string, targetId: string) {
 }
 
 export async function getFullProfile(viewerId: string, targetId: string) {
-  // 1) récupérer le profil complet du target (réutilise ta logique)
   const data = await getMyProfile(targetId);
 
-  // 2) gérer la visibilité PRIVATE
   const visibility = data.identity.profileVisibility ?? 'CAMPUS';
   if (visibility === 'PRIVATE' && viewerId !== targetId) {
     const err: any = new Error('Profil privé');
@@ -841,12 +821,10 @@ export async function getFullProfile(viewerId: string, targetId: string) {
     throw err;
   }
 
-  // 3) cacher l’email si l’utilisateur n’a pas autorisé (et si viewer != owner)
   if (viewerId !== targetId && !data.identity.showEmail) {
-    data.identity.email = ''; // ou null si tu préfères
+    data.identity.email = '';
   }
 
-  // 4) follow counts + isFollowing (table user_follows)
   const [followersRow] = await query<{ c: number }>(
     `select count(*)::int as c from user_follows where followed_user_id = $1`,
     [targetId],

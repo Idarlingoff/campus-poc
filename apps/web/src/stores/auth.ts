@@ -74,8 +74,6 @@ export const useAuthStore = defineStore("auth", {
         },
 
         async bootstrap() {
-            // Si pas de token, on ne touche pas à guest:
-            // => l'invité survit au refresh.
             if (!this.token) {
                 this.me = null;
                 return;
@@ -85,7 +83,6 @@ export const useAuthStore = defineStore("auth", {
                 this.loading = true;
                 this.error = null;
 
-                // si token => pas invité
                 this.setGuest(false);
 
                 this.me = await apiRequest<Me>("/me", { token: this.token });

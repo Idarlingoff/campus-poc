@@ -3,11 +3,6 @@ import { query } from '../db';
 export async function searchUsers(meId: string, q: string) {
   const like = `%${q.toLowerCase()}%`;
 
-  // ⚠️ IMPORTANT:
-  // - LEFT JOIN user_profile : sinon les users sans profile ne sortent jamais
-  // - on exclut moi-même
-  // - on filtre les profils PRIVATE (si tu veux qu’ils soient introuvables)
-  // - on renvoie un "publicName" déjà prêt
 
   const rows = await query<{
     id: string;

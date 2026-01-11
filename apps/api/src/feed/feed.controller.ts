@@ -28,10 +28,8 @@ export class FeedController {
       ? String(req.query.includeEvents) !== 'false'
       : true;
 
-    // viewer depuis optionalAuthJwt
     const user = (req as any).user ?? null;
 
-    // Filtre (uniquement si connecté)
     let filter: FeedFilter | null = null;
     if (user && req.query.filter) {
       const f = String(req.query.filter) as FeedFilter;
@@ -43,7 +41,7 @@ export class FeedController {
     const viewer = {
       isAuthenticated: !!user,
       userId: user?.id,
-      filter, // null si déconnecté ou filtre non spécifié
+      filter,
     };
 
     const data = await this.service.getFeed(

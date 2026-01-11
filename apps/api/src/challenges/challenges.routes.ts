@@ -5,10 +5,10 @@ import {
   createChallenge,
   listApprovedChallenges,
   listPendingChallenges,
-  listChallengesForModeration, // NEW
+  listChallengesForModeration,
   getChallengeById,
-  getChallengeForModerationById, // NEW (optionnel mais utile)
-  getChallengeJudgingBundle, // NEW (optionnel mais recommandé)
+  getChallengeForModerationById,
+  getChallengeJudgingBundle,
   moderateChallenge,
   registerToChallenge,
   submitProof,

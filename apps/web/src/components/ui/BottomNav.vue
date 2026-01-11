@@ -28,7 +28,7 @@ export type BottomTab = {
 const props = defineProps<{
   activeKey: TabKey;
   tabs: BottomTab[];
-  isGuest?: boolean; // ✅ nouveau
+  isGuest?: boolean;
 }>();
 
 defineEmits<{

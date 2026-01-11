@@ -38,7 +38,6 @@ const user = computed(() => {
 const tabs = computed<BottomTab[]>(() => {
   const base: BottomTab[] = [{ key: "feed", label: "Accueil", icon: "🏠" }];
 
-  // 🔎 Search -> accessible à tous SAUF invité
   if (!auth.isGuest && auth.isAuthenticated) {
     base.push({ key: "search", label: "Rechercher", icon: "🔎" });
   }
@@ -51,8 +50,6 @@ const tabs = computed<BottomTab[]>(() => {
     base.push({ key: "propose", label: "Proposer", icon: "＋" });
   }
 
-  // Tu avais activity:read, mais dans tes routes tu as /app/profile, pas /app/activity
-  // On garde le tab "activity" mais on le route vers /app/profile.
   base.push({ key: "activity", label: "Profil", icon: "👤" });
 
   return base;

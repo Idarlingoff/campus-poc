@@ -155,7 +155,6 @@ profileRouter.get('/search', authJwt, async (req: AuthedRequest, res) => {
   const limit = Math.min(50, Math.max(1, Number(req.query.limit ?? 20)));
   const offset = Math.max(0, Number(req.query.offset ?? 0));
 
-  // si pas de query, on renvoie vide (évite de lister tout le campus)
   if (!q || q.length < 2) return res.json({ items: [], total: 0 });
 
   const data = await searchProfiles(req.user.id, q, limit, offset);

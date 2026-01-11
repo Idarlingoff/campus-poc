@@ -274,18 +274,13 @@ async function toggleFollow() {
     } else {
       await apiRequest(`/profile/${encodeURIComponent(id)}/follow`, { method: "POST", token: auth.token });
     }
-    // refresh to get exact counters
     await fetchProfile();
   } catch (_e) {
-    // optional: toast
   } finally {
     followBusy.value = false;
   }
 }
 
-/**
- * Actions
- */
 function goSettings() {
   router.push("/app/settings");
 }
@@ -296,7 +291,7 @@ function editProfile() {
   router.push({ name: "profile-edit" });
 }
 function backToSearch() {
-  router.push({ name: "users" }); // adapte si ton nom de route diffère
+  router.push({ name: "users" });
 }
 </script>
 

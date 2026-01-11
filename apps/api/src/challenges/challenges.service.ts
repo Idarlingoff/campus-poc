@@ -44,18 +44,15 @@ function computePhase(row: {
   const start = row.start_at ? new Date(row.start_at) : null;
   const end = row.end_at ? new Date(row.end_at) : null;
 
-  // Si dates pas encore configurées -> par défaut REGISTRATION
   if (!start || !end) return 'REGISTRATION';
 
   if (row.winners_finalized) return 'FINISHED';
   if (now < start) return 'REGISTRATION';
   if (now >= start && now <= end) return 'RUNNING';
-  // now > end et winners non finalisés
   return 'JUDGING';
 }
 
 async function updatePhaseIfNeeded(challengeId: string, phase: Phase) {
-  // MVP: on met à jour en base seulement si différent
   await pool.query(
     `update challenges set phase=$2 where id=$1 and phase is distinct from $2`,
     [challengeId, phase],
@@ -148,11 +145,9 @@ export async function listApprovedChallenges() {
   `;
   const { rows } = await pool.query(q);
 
-  // compute phase + update db if needed
   for (const r of rows) {
     const phase = computePhase(r);
     r.phase = phase;
-    // en MVP tu peux commenter si tu veux éviter des updates en boucle
     await updatePhaseIfNeeded(r.id, phase);
   }
 
@@ -212,7 +207,6 @@ export async function getChallengeById(userId: string, id: string) {
   ch.phase = phase;
   await updatePhaseIfNeeded(ch.id, phase);
 
-  // winners
   const winnersRes = await pool.query(
     `
     select w.rank, w.participant_type,
@@ -227,7 +221,6 @@ export async function getChallengeById(userId: string, id: string) {
     [id],
   );
 
-  // my participation
   let myParticipation: any = null;
 
   if (ch.participation_mode === 'SOLO') {
@@ -241,7 +234,6 @@ export async function getChallengeById(userId: string, id: string) {
     );
     if (part.rows[0]) myParticipation = { type: 'USER', ...part.rows[0] };
   } else {
-    // TEAM: find the team registered for this challenge that contains user
     const part = await pool.query(
       `
       select cp.participant_type, cp.team_id, cp.status, cp.registered_at, cp.submitted_at,
@@ -297,7 +289,6 @@ export async function registerToChallenge(
       [challengeId, phase],
     );
 
-    // already registered ?
     if (ch.participation_mode === 'SOLO') {
       const exists = await client.query(
         `select 1 from challenge_participants
@@ -317,11 +308,9 @@ export async function registerToChallenge(
       return { ok: true, participantType: 'USER', challengeId };
     }
 
-    // TEAM: create team at registration
     const teamName = String(body?.teamName ?? body?.team_name ?? '').trim();
     if (!teamName || teamName.length < 2) throw new Error('teamName required');
 
-    // Ensure user isn't already registered via any team for this challenge
     const existsTeam = await client.query(
       `
       select 1
@@ -407,7 +396,6 @@ export async function submitProof(
       );
       if (!part.rows[0]) throw new Error('not registered');
 
-      // upsert submission (1 per user)
       await client.query(
         `
         insert into challenge_submissions(challenge_id, participant_type, user_id, content, attachments)
@@ -431,7 +419,6 @@ export async function submitProof(
       return { ok: true, participantType: 'USER', challengeId };
     }
 
-    // TEAM: find team registered for challenge by membership
     const teamRes = await client.query(
       `
       select cp.team_id
@@ -508,7 +495,6 @@ export async function setWinners(
 
     const podiumSize = Number(ch.podium_size ?? 1);
 
-    // validate ranks
     const ranks = winners.map((w: any) => Number(w.rank));
     for (const r of ranks) {
       if (!Number.isFinite(r) || r < 1 || r > podiumSize)
@@ -519,7 +505,6 @@ export async function setWinners(
 
     const mode: ParticipationMode = ch.participation_mode;
 
-    // Clear existing winners (MVP) then insert
     await client.query(`delete from challenge_winners where challenge_id=$1`, [
       challengeId,
     ]);
@@ -642,8 +627,6 @@ export async function getChallengeJudgingBundle(challengeId: string) {
   await updatePhaseIfNeeded(ch.id, phase);
 
   if (phase !== 'JUDGING') {
-    // tu peux choisir de l'autoriser hors JUDGING pour debug
-    // mais en prod je conseille de bloquer
     throw new Error('not in judging phase');
   }
 

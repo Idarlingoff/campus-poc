@@ -39,7 +39,6 @@ export async function optionalAuthJwt(
   const auth = req.headers.authorization;
 
   if (!auth || !auth.startsWith('Bearer ')) {
-    // Pas de token => invité => on laisse passer
     return next();
   }
 
@@ -53,7 +52,6 @@ export async function optionalAuthJwt(
 
     return next();
   } catch (err) {
-    // Token invalide => on laisse passer en invité OU tu peux 401
     return next();
   }
 }

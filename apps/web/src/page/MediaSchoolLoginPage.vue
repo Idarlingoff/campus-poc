@@ -34,7 +34,7 @@ async function submit() {
   try {
     await auth.login({ email: e, password: p });
 
-    router.replace("/app/feed"); // ou /app/feed selon ton routing
+    router.replace("/app/feed");
   } catch (err: any) {
     error.value = auth.error ?? "Identifiants invalides.";
   }

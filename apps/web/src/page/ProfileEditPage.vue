@@ -29,12 +29,11 @@ type ProfileMeResponse = {
     avatarText: string;
     avatarUrl?: string | null;
 
-    birthDate?: string | null; // YYYY-MM-DD
+    birthDate?: string | null;
     age?: number | null;
 
     showEmail: boolean;
-    showBirthDate: boolean;
-    showAge: boolean;
+    showBirthDatlean;
 
     profileVisibility: ProfileVisibility;
 
@@ -59,14 +58,13 @@ const error = ref<string | null>(null);
 
 const profile = ref<ProfileMeResponse | null>(null);
 
-// form fields
 const displayName = ref("");
 
 const firstName = ref("");
 const lastName = ref("");
 const lastNameVisibility = ref<LastNameVisibility>("FULL");
 
-const birthDate = ref(""); // YYYY-MM-DD
+const birthDate = ref("");
 const showEmail = ref(false);
 const showBirthDate = ref(false);
 const showAge = ref(false);
@@ -79,7 +77,7 @@ const avatarInputRef = ref<HTMLInputElement | null>(null);
 
 const schoolLine = ref("");
 const city = ref("");
-const sinceDate = ref(""); // YYYY-MM ou YYYY-MM-DD
+const sinceDate = ref("");
 const bio = ref("");
 
 const showSocials = ref(true);
@@ -216,7 +214,6 @@ async function save() {
 
         profileVisibility: profileVisibility.value,
 
-        // avatarText gardé en fallback si pas d’image
         avatarText: avatarText.value.trim(),
 
         schoolLine: schoolLine.value.trim(),
@@ -240,7 +237,6 @@ async function save() {
   }
 }
 
-// Avatar upload
 async function onPickAvatar(ev: Event) {
   const input = ev.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -271,8 +267,6 @@ async function onPickAvatar(ev: Event) {
     });
 
     avatarUrl.value = resp.avatarUrl;
-    // Optionnel : refresh complet
-    // await fetchMe();
   } catch (e: any) {
     error.value = e instanceof ApiError ? (e.body?.message ?? "Erreur upload avatar") : "Erreur upload avatar";
   } finally {
@@ -283,7 +277,6 @@ async function onPickAvatar(ev: Event) {
 
 function removeAvatarImage() {
   avatarUrl.value = null;
-  // si tu veux le supprimer côté backend, tu peux PATCH avatarUrl: "" (selon ta logique)
 }
 
 onMounted(async () => {

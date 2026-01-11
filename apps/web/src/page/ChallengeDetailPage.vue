@@ -129,7 +129,7 @@ async function register() {
       body,
     });
 
-    await load(); // refresh myParticipation
+    await load();
   } catch (e: any) {
     if (e instanceof ApiError) error.value = e.body?.message ?? "Inscription impossible";
     else error.value = "Inscription impossible";

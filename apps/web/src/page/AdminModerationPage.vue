@@ -11,9 +11,6 @@ import EmptyState from "@/components/ui/EmptyState.vue";
 type MainTab = "challenges" | "publications";
 const mainTab = ref<MainTab>("challenges");
 
-// ======================
-// CHALLENGES MODERATION
-// ======================
 type Challenge = {
   id: string;
   title: string;
@@ -76,9 +73,6 @@ type JudgingBundle = {
 
 type WinnerDraftLine = { rank: number; userId?: string; teamId?: string };
 
-// ======================
-// PUBLICATIONS MODERATION
-// ======================
 type ReportedPublication = {
   id: string;
   publicationId: string;
@@ -99,7 +93,6 @@ const flash = useFlashStore();
 
 const canModerate = computed(() => auth.can("challenges:moderate"));
 
-// Challenge state
 const challengeLoading = ref(false);
 const challengeError = ref<string | null>(null);
 const allChallenges = ref<Challenge[]>([]);
@@ -113,14 +106,12 @@ const judgingErrorId = ref<string | null>(null);
 const judgingBundles = ref<Record<string, JudgingBundle>>({});
 const winnersDraft = ref<Record<string, WinnerDraftLine[]>>({});
 
-// Publication state
 const publicationLoading = ref(false);
 const publicationError = ref<string | null>(null);
 const reportedPublications = ref<ReportedPublication[]>([]);
 const expandedReportId = ref<string | null>(null);
 const deleteConfirmId = ref<string | null>(null);
 
-// Formatters
 function fmtCategory(v: string) {
   const m: Record<string, string> = {
     creation: "Création",
@@ -175,9 +166,6 @@ function fmtRelativeTime(iso: string) {
   return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-// ======================
-// CHALLENGES LOGIC
-// ======================
 async function loadChallenges() {
   challengeLoading.value = true;
   challengeError.value = null;

@@ -14,7 +14,6 @@ export class FeedService {
   ): Promise<FeedResponse> {
     const limit = Math.min(Math.max(query.limit || 20, 1), 50);
 
-    // campus/ville user
     let userCampusId: string | null = null;
     let userCity: string | null = null;
 
@@ -25,7 +24,6 @@ export class FeedService {
     }
     const effectiveCity = userCity ?? 'Paris';
 
-    // Déterminer le mode de visibilité selon le contexte
     let visibilityMode:
       | 'PUBLIC_ONLY'
       | 'MY_CAMPUS'
@@ -34,15 +32,12 @@ export class FeedService {
     let followedUserIds: string[] = [];
 
     if (!viewer.isAuthenticated) {
-      // Déconnecté : uniquement PUBLIC
       visibilityMode = 'PUBLIC_ONLY';
     } else {
-      // Connecté : toujours récupérer les abonnements (pour les publications PRIVATE)
       followedUserIds = viewer.userId
         ? await this.repo.getFollowedUserIds(viewer.userId)
         : [];
 
-      // Utiliser le filtre choisi (défaut: public)
       const filter = viewer.filter ?? 'public';
 
       switch (filter) {
@@ -83,25 +78,23 @@ export class FeedService {
       this.repo.listCityNews({ city: effectiveCity, limit: slice.city }),
     ]);
 
-    // institutional -> NewsItem
     const institutionalNews = inst.map((n: any) => ({
       id: n.id,
       title: n.title,
       summary: n.excerpt ?? null,
-      imageUrl: null, // si tu ne l’as pas en DB, laisse null
-      category: null, // idem
+      imageUrl: null,
+      category: null,
       publishedAt: new Date(n.publishedAt).toISOString(),
       isImportant: !!(n.is_featured ?? n.isFeatured),
     }));
 
-    // member publications -> PostItem
     const memberPosts = pubs.map((p: any) => ({
       id: p.id,
       author: {
         id: p.authorId,
         displayName: p.authorDisplayName,
-        avatarUrl: null, // brancher quand tu as un champ avatar
-        isFollowed: false, // à brancher via user_follows si connecté
+        avatarUrl: null,
+        isFollowed: false,
       },
       content: extractTextFromHtml(p.content_html),
       imageUrl: extractFirstImageFromHtml(p.content_html),
@@ -111,7 +104,6 @@ export class FeedService {
       isLiked: false,
     }));
 
-    // city -> CityNewsItem
     const cityNews = city.map((n: any) => ({
       id: n.id,
       title: n.title,

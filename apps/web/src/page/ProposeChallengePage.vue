@@ -23,18 +23,15 @@ const difficulty = ref<"facile"|"moyen"|"difficile">("moyen");
 const points = ref(100);
 const durationMin = ref(120);
 
-// NEW
 const participationMode = ref<"SOLO" | "TEAM">("SOLO");
 const requiresProof = ref(true);
 const podiumSize = ref(3);
 
-// Dates optionnelles (input datetime-local => string)
-const startAtLocal = ref<string>(""); // ex: "2025-12-27T14:30"
+const startAtLocal = ref<string>("");
 const endAtLocal = ref<string>("");
 
 function toIsoOrNull(local: string): string | null {
   if (!local?.trim()) return null;
-  // datetime-local est en "local time" sans timezone => on le convertit en Date locale puis ISO
   const d = new Date(local);
   if (isNaN(d.getTime())) return null;
   return d.toISOString();
@@ -67,7 +64,6 @@ async function submit() {
   const startAt = toIsoOrNull(startAtLocal.value);
   const endAt = toIsoOrNull(endAtLocal.value);
 
-  // Règle : les deux ou aucun
   if ((startAt && !endAt) || (!startAt && endAt)) {
     error.value = "Merci de renseigner startAt et endAt (ou aucun des deux).";
     return;
@@ -90,7 +86,6 @@ async function submit() {
         points: points.value,
         durationMin: durationMin.value,
 
-        // NEW FIELDS
         participationMode: participationMode.value,
         requiresProof: requiresProof.value,
         podiumSize: podiumSize.value,

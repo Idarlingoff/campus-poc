@@ -41,7 +41,6 @@ const filterOptions: { value: FeedFilter; label: string; icon: string }[] = [
   { value: 'following', label: 'Abonnements', icon: '👥' },
 ];
 
-// Computed
 const isGuest = computed(() => auth.isGuest);
 
 const postsTitle = computed(() => {
@@ -68,7 +67,6 @@ const composer = ref({
   eventEndAt: "",
 });
 
-// Report modal
 const openReportModal = ref(false);
 const reportingPost = ref<PostItem | null>(null);
 const reportReason = ref("");
@@ -155,7 +153,6 @@ onMounted(async () => {
   flash.showWelcome(isGuest.value);
 });
 
-// Actions
 function handleNewsClick(news: NewsItem) {
   console.log("News clicked:", news.id);
 }

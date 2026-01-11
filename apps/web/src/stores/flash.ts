@@ -6,7 +6,7 @@ export const useFlashStore = defineStore("flash", {
         type: "success" as "success" | "info" | "error",
         visible: false,
         timeoutId: null as any,
-        welcomeShown: false, // Flag pour ne montrer le message de bienvenue qu'une fois
+        welcomeShown: false,
     }),
     actions: {
         show(message: string, type: "success" | "info" | "error" = "info", ms = 5000) {
@@ -22,7 +22,7 @@ export const useFlashStore = defineStore("flash", {
             this.visible = false;
         },
         showWelcome(isGuest: boolean) {
-            if (this.welcomeShown) return; // Ne pas réafficher
+            if (this.welcomeShown) return;
             this.welcomeShown = true;
             this.show(isGuest ? "Bienvenue 👋" : "Content de te revoir 👋", "info", 3000);
         },

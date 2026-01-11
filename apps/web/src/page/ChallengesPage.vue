@@ -10,15 +10,12 @@ import ChallengeList from "@/components/challenges/ChallengeList.vue";
 import type { ChallengeItem } from "@/components/challenges/ChallengeListItem.vue";
 import EmptyState from "@/components/ui/EmptyState.vue";
 
-/**
- * Types API
- */
 type ApiChallenge = {
-  id: string; // uuid
+  id: string;
   title: string;
   description: string;
-  category: string;     // ex: 'creation' | 'nourriture' | 'photo' | 'groupe' | 'style' | 'autre'
-  difficulty: string;   // ex: 'facile' | 'moyen' | 'difficile'
+  category: string;
+  difficulty: string;
   points: number;
   duration_min: number;
   status: "PENDING" | "APPROVED" | "REJECTED";
@@ -35,7 +32,7 @@ type ProfileMe = {
 
 type ChallengeWithCategory = ChallengeItem & {
   category: ChallengeCategory;
-  realId: string; // uuid back
+  realId: string;
 };
 
 const auth = useAuthStore();
@@ -59,7 +56,7 @@ function mapCategoryToFront(cat: string): ChallengeCategory {
   if (v === "photo") return "photo";
   if (v === "groupe" || v === "group") return "group";
   if (v === "style") return "style";
-  return "all"; // fallback -> on mettra en all, mais on ne filtrera pas dessus
+  return "all";
 }
 
 function mapDifficultyLabel(d: string): string {
@@ -75,8 +72,6 @@ async function loadChallenges() {
   error.value = null;
 
   try {
-    // ✅ si ton backend exige authJwt + requirePerm, il faut un token
-    // Si tu veux que les invités voient les défis, il faudra rendre GET /challenges public ou gérer un token invité.
     const token = auth.token ?? undefined;
 
     const apiItems = await apiRequest<ApiChallenge[]>("/challenges", {
@@ -85,7 +80,6 @@ async function loadChallenges() {
     });
 
     challenges.value = apiItems.map((c, idx) => ({
-      // UI id: numéro de liste comme sur la maquette
       id: idx + 1,
       realId: c.id,
 
@@ -96,7 +90,6 @@ async function loadChallenges() {
       points: c.points,
       durationMin: c.duration_min,
 
-      // optionnel: pas dans ton modèle DB pour le moment
       time: undefined,
       remaining: undefined,
       locked: false,
@@ -113,10 +106,6 @@ async function loadChallenges() {
   }
 }
 
-/**
- * Optionnel : charger stats depuis /profile/me si dispo
- * (sinon on garde les valeurs par défaut)
- */
 async function loadStats() {
   try {
     const token = auth.token ?? undefined;
@@ -126,11 +115,10 @@ async function loadStats() {
     const done = me?.stats?.challengesDone ?? 0;
     const max = challenges.value.length;
 
-    pointsTotal.value = `${pts}/1500`; // tu peux remplacer 1500 par une config plus tard
+    pointsTotal.value = `${pts}/1500`;
     completed.value = `${done}/${max}`;
     streak.value = 0;
   } catch {
-    // ignore: on laisse le fallback
   }
 }
 
@@ -153,14 +141,12 @@ function goLogin() {
 watch(
     () => auth.token,
     async () => {
-      // si on se connecte/déconnecte, on recharge
       await loadChallenges();
       await loadStats();
     }
 );
 
 onMounted(async () => {
-  // si ton auth.bootstrap n’est pas encore appelé au démarrage, fais-le avant
   if (auth.token && !auth.me && !auth.loading) {
     await auth.bootstrap();
   }

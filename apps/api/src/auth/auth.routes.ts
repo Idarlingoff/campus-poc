@@ -11,7 +11,6 @@ import { signAccessToken } from './jwt';
 
 export const authRouter = Router();
 
-// Liste des campus disponibles (public)
 authRouter.get('/campuses', async (_req, res) => {
   const campuses = await getAllCampuses();
   return res.json(campuses);

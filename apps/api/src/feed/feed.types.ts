@@ -7,7 +7,7 @@ export type FeedResponse = {
     summary: string | null;
     imageUrl: string | null;
     category: string | null;
-    publishedAt: string; // ISO
+    publishedAt: string;
     isImportant: boolean;
   }>;
   memberPosts: Array<{
@@ -22,7 +22,7 @@ export type FeedResponse = {
     imageUrl: string | null;
     likesCount: number;
     commentsCount: number;
-    publishedAt: string; // ISO
+    publishedAt: string;
     isLiked: boolean;
   }>;
   cityNews: Array<{
@@ -31,7 +31,7 @@ export type FeedResponse = {
     summary: string | null;
     source: string | null;
     city: string;
-    publishedAt: string; // ISO
+    publishedAt: string;
     category: string | null;
     imageUrl: string | null;
     url: string | null;

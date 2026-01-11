@@ -124,7 +124,6 @@ async function runSearch() {
   searchError.value = null;
 
   try {
-    // ✅ FIX : bonne route
     const resp = await apiRequest<SearchResponse>(`/users/search?q=${encodeURIComponent(query)}`, {
       token: auth.token,
     });
@@ -213,12 +212,10 @@ async function toggleFollow(targetId: string, currentlyFollowing: boolean) {
       await apiRequest(`/profile/${encodeURIComponent(targetId)}/follow`, { method: "POST", token: auth.token });
     }
 
-    // update search list state (si isFollowing existe)
     items.value = items.value.map((it) =>
         it.id === targetId ? { ...it, isFollowing: !currentlyFollowing } : it
     );
 
-    // update detail (si ouvert)
     if (profile.value?.identity.id === targetId) {
       await fetchDetail();
     }

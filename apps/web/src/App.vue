@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import FlashToast from "@/components/ui/FlashToast.vue";
 </script>
 
 <template>
-  <RouterView />
+  <RouterView /><FlashToast />
 </template>
 
 <style>

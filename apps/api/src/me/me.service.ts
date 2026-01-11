@@ -1,22 +1,22 @@
-import { query } from "../db";
+import { query } from '../db';
 
 export type MeResponse = {
-    id: string;
-    email: string;
-    displayName: string;
-    roles: string[];
-    permissions: string[];
+  id: string;
+  email: string;
+  displayName: string;
+  roles: string[];
+  permissions: string[];
 };
 
 export async function getMe(userId: string): Promise<MeResponse> {
-    const rows = await query<{
-        id: string;
-        email: string;
-        display_name: string;
-        roles: string[] | null;
-        permissions: string[] | null;
-    }>(
-        `
+  const rows = await query<{
+    id: string;
+    email: string;
+    display_name: string;
+    roles: string[] | null;
+    permissions: string[] | null;
+  }>(
+    `
     select
       u.id,
       u.email,
@@ -31,17 +31,17 @@ export async function getMe(userId: string): Promise<MeResponse> {
     where u.id = $1
     group by u.id
     `,
-        [userId]
-    );
+    [userId],
+  );
 
-    const me = rows[0];
-    if (!me) throw new Error("User not found");
+  const me = rows[0];
+  if (!me) throw new Error('User not found');
 
-    return {
-        id: me.id,
-        email: me.email,
-        displayName: me.display_name,
-        roles: me.roles ?? [],
-        permissions: me.permissions ?? [],
-    };
+  return {
+    id: me.id,
+    email: me.email,
+    displayName: me.display_name,
+    roles: me.roles ?? [],
+    permissions: me.permissions ?? [],
+  };
 }

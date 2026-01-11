@@ -397,6 +397,13 @@ function backToSearch() {
         </template>
       </RecentActivityCard>
 
+      <ContactInfoCard>
+        <ContactLine v-if="showEmail" icon="✉️" label="Email" :value="email" />
+        <template v-else>
+          <ContactLine icon="🔒" label="Email" value="Masqué" />
+        </template>
+      </ContactInfoCard>
+
       <!-- Actions: only for my profile -->
       <ProfileActionsCard v-if="!isOtherUser">
         <ProfileActionItem icon="👤" label="Modifier le profil" @click="editProfile" />
@@ -417,12 +424,6 @@ function backToSearch() {
         </button>
       </div>
 
-      <ContactInfoCard>
-        <ContactLine v-if="showEmail" icon="✉️" label="Email" :value="email" />
-        <template v-else>
-          <ContactLine icon="🔒" label="Email" value="Masqué" />
-        </template>
-      </ContactInfoCard>
     </template>
 
     <template v-else>

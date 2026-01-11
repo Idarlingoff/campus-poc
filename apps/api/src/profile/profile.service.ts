@@ -1,109 +1,110 @@
-import { query } from "../db";
+import { query } from '../db';
 
-type LastNameVisibility = "FULL" | "INITIAL" | "HIDDEN";
-type ProfileVisibility = "CAMPUS" | "PRIVATE";
+type LastNameVisibility = 'FULL' | 'INITIAL' | 'HIDDEN';
+type ProfileVisibility = 'CAMPUS' | 'PRIVATE';
 
 type ProfilePatch = {
-    // users
-    displayName?: string;
+  // users
+  displayName?: string;
 
-    // identity (user_profile)
-    firstName?: string;
-    lastName?: string;
-    lastNameVisibility?: LastNameVisibility;
+  // identity (user_profile)
+  firstName?: string;
+  lastName?: string;
+  lastNameVisibility?: LastNameVisibility;
 
-    birthDate?: string | null; // YYYY-MM-DD
-    showEmail?: boolean;
-    showBirthDate?: boolean;
-    showAge?: boolean;
+  birthDate?: string | null; // YYYY-MM-DD
+  showEmail?: boolean;
+  showBirthDate?: boolean;
+  showAge?: boolean;
 
-    profileVisibility?: ProfileVisibility;
+  profileVisibility?: ProfileVisibility;
 
-    // socials
-    showSocials?: boolean;
-    instagramHandle?: string;
-    linkedinUrl?: string;
-    websiteUrl?: string;
+  // socials
+  showSocials?: boolean;
+  instagramHandle?: string;
+  linkedinUrl?: string;
+  websiteUrl?: string;
 
-    // campus / misc
-    bio?: string;
-    city?: string;
-    schoolLine?: string;
-    sinceDate?: string;
+  // campus / misc
+  bio?: string;
+  city?: string;
+  schoolLine?: string;
+  sinceDate?: string;
 
-    // avatar
-    avatarText?: string;
-    avatarUrl?: string | null;
+  // avatar
+  avatarText?: string;
+  avatarUrl?: string | null;
 };
 
 type FollowInfo = {
-    followersCount: number;
-    followingCount: number;
-    isFollowing: boolean;
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
 };
 
 function roleLabel(roles: string[]) {
-    if (roles.includes("student")) return "Étudiant · MediaSchool";
-    if (roles.includes("staff")) return "Intervenant / Équipe pédagogique";
-    if (roles.includes("bde")) return "BDE";
-    return "Externe";
+  if (roles.includes('student')) return 'Étudiant · MediaSchool';
+  if (roles.includes('staff')) return 'Intervenant / Équipe pédagogique';
+  if (roles.includes('bde')) return 'BDE';
+  return 'Externe';
 }
 
 function isValidSinceDate(v: string) {
-    return /^(\d{4})-(\d{2})(-(\d{2}))?$/.test(v);
+  return /^(\d{4})-(\d{2})(-(\d{2}))?$/.test(v);
 }
 
 function isValidBirthDate(v: string) {
-    return /^(\d{4})-(\d{2})-(\d{2})$/.test(v);
+  return /^(\d{4})-(\d{2})-(\d{2})$/.test(v);
 }
 
 function computeAge(birthDate: string | null): number | null {
-    if (!birthDate) return null;
-    const d = new Date(birthDate);
-    if (Number.isNaN(d.getTime())) return null;
+  if (!birthDate) return null;
+  const d = new Date(birthDate);
+  if (Number.isNaN(d.getTime())) return null;
 
-    const now = new Date();
-    let age = now.getFullYear() - d.getFullYear();
-    const m = now.getMonth() - d.getMonth();
-    if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
-    if (age < 0 || age > 120) return null;
-    return age;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  if (age < 0 || age > 120) return null;
+  return age;
 }
 
 export async function getMyProfile(userId: string) {
-    const users = await query<{ id: string; email: string; display_name: string }>(
-        `select id, email, display_name from users where id = $1`,
-        [userId]
-    );
-    const u = users[0];
-    if (!u) throw new Error("User not found");
+  const users = await query<{
+    id: string;
+    email: string;
+    display_name: string;
+  }>(`select id, email, display_name from users where id = $1`, [userId]);
+  const u = users[0];
+  if (!u) throw new Error('User not found');
 
-    const profRows = await query<{
-        bio: string | null;
-        city: string | null;
-        school_line: string | null;
-        since_date: string | null;
+  const profRows = await query<{
+    bio: string | null;
+    city: string | null;
+    school_line: string | null;
+    since_date: string | null;
 
-        avatar_text: string | null;
-        avatar_url: string | null;
+    avatar_text: string | null;
+    avatar_url: string | null;
 
-        first_name: string | null;
-        last_name: string | null;
-        birth_date: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    birth_date: string | null;
 
-        show_email: boolean;
-        show_birth_date: boolean;
-        show_age: boolean;
+    show_email: boolean;
+    show_birth_date: boolean;
+    show_age: boolean;
 
-        last_name_visibility: LastNameVisibility;
-        profile_visibility: ProfileVisibility;
+    last_name_visibility: LastNameVisibility;
+    profile_visibility: ProfileVisibility;
 
-        instagram_handle: string | null;
-        linkedin_url: string | null;
-        website_url: string | null;
-        show_socials: boolean;
-    }>(
-        `
+    instagram_handle: string | null;
+    linkedin_url: string | null;
+    website_url: string | null;
+    show_socials: boolean;
+  }>(
+    `
     select
       bio, city, school_line, since_date,
       avatar_text, avatar_url,
@@ -114,23 +115,23 @@ export async function getMyProfile(userId: string) {
     from user_profile
     where user_id = $1
     `,
-        [userId]
-    );
-    const p = profRows[0] ?? null;
+    [userId],
+  );
+  const p = profRows[0] ?? null;
 
-    const roles = await query<{ code: string }>(
-        `
+  const roles = await query<{ code: string }>(
+    `
     select r.code
     from user_roles ur
     join roles r on r.id = ur.role_id
     where ur.user_id = $1
     `,
-        [userId]
-    );
-    const roleCodes = roles.map((r) => r.code);
+    [userId],
+  );
+  const roleCodes = roles.map((r) => r.code);
 
-    const statsRows = await query<{ points_total: number; ranking: number }>(
-        `
+  const statsRows = await query<{ points_total: number; ranking: number }>(
+    `
     with totals as (
       select user_id, coalesce(sum(delta), 0)::int as points_total
       from user_points_ledger
@@ -147,15 +148,20 @@ export async function getMyProfile(userId: string) {
     from ranked r
     where r.user_id = $1
     `,
-        [userId]
-    );
+    [userId],
+  );
 
-    const pointsTotal = statsRows[0]?.points_total ?? 0;
-    const ranking = statsRows[0]?.ranking ?? 0;
-    const challengesDone = 0;
+  const pointsTotal = statsRows[0]?.points_total ?? 0;
+  const ranking = statsRows[0]?.ranking ?? 0;
+  const challengesDone = 0;
 
-    const badgeRows = await query<{ title: string; description: string; icon: string; unlocked: boolean }>(
-        `
+  const badgeRows = await query<{
+    title: string;
+    description: string;
+    icon: string;
+    unlocked: boolean;
+  }>(
+    `
     select b.title, b.description, b.icon,
            (ub.user_id is not null) as unlocked
     from badges b
@@ -163,197 +169,258 @@ export async function getMyProfile(userId: string) {
       on ub.badge_id = b.id and ub.user_id = $1
     order by b.title asc
     `,
-        [userId]
-    );
+    [userId],
+  );
 
-    const activityRows = await query<{
-        icon: string | null;
-        title: string;
-        meta: string | null;
-        points: number | null;
-        created_at: string;
-    }>(
-        `
+  const activityRows = await query<{
+    icon: string | null;
+    title: string;
+    meta: string | null;
+    points: number | null;
+    created_at: string;
+  }>(
+    `
     select icon, title, meta, points, created_at
     from user_activity
     where user_id = $1
     order by created_at desc
     limit 20
     `,
-        [userId]
-    );
+    [userId],
+  );
 
-    const levelMax = 1000;
-    const remaining = Math.max(0, levelMax - pointsTotal);
-    const hint = remaining > 0 ? `Encore ${remaining} points pour passer au niveau supérieur 🎯` : "Niveau max atteint 🎉";
+  const levelMax = 1000;
+  const remaining = Math.max(0, levelMax - pointsTotal);
+  const hint =
+    remaining > 0
+      ? `Encore ${remaining} points pour passer au niveau supérieur 🎯`
+      : 'Niveau max atteint 🎉';
 
-    const age = computeAge(p?.birth_date ?? null);
+  const age = computeAge(p?.birth_date ?? null);
 
-    // follow counts for own profile
-    const followCounts = await getFollowCounts(userId);
+  // follow counts for own profile
+  const followCounts = await getFollowCounts(userId);
 
-    return {
-        identity: {
-            id: u.id,
-            email: u.email,
-            displayName: u.display_name,
+  return {
+    identity: {
+      id: u.id,
+      email: u.email,
+      displayName: u.display_name,
 
-            firstName: p?.first_name ?? "",
-            lastName: p?.last_name ?? "",
-            lastNameVisibility: p?.last_name_visibility ?? "FULL",
+      firstName: p?.first_name ?? '',
+      lastName: p?.last_name ?? '',
+      lastNameVisibility: p?.last_name_visibility ?? 'FULL',
 
-            bio: p?.bio ?? "",
-            city: p?.city ?? "",
-            schoolLine: p?.school_line ?? roleLabel(roleCodes),
-            sinceDate: p?.since_date ?? null,
+      bio: p?.bio ?? '',
+      city: p?.city ?? '',
+      schoolLine: p?.school_line ?? roleLabel(roleCodes),
+      sinceDate: p?.since_date ?? null,
 
-            avatarText: p?.avatar_text ?? "",
-            avatarUrl: p?.avatar_url ?? null,
+      avatarText: p?.avatar_text ?? '',
+      avatarUrl: p?.avatar_url ?? null,
 
-            birthDate: p?.birth_date ?? null,
-            age,
+      birthDate: p?.birth_date ?? null,
+      age,
 
-            showEmail: p?.show_email ?? false,
-            showBirthDate: p?.show_birth_date ?? false,
-            showAge: p?.show_age ?? false,
+      showEmail: p?.show_email ?? false,
+      showBirthDate: p?.show_birth_date ?? false,
+      showAge: p?.show_age ?? false,
 
-            profileVisibility: p?.profile_visibility ?? "CAMPUS",
+      profileVisibility: p?.profile_visibility ?? 'CAMPUS',
 
-            socials: {
-                show: p?.show_socials ?? true,
-                instagramHandle: p?.instagram_handle ?? "",
-                linkedinUrl: p?.linkedin_url ?? "",
-                websiteUrl: p?.website_url ?? "",
-            },
+      socials: {
+        show: p?.show_socials ?? true,
+        instagramHandle: p?.instagram_handle ?? '',
+        linkedinUrl: p?.linkedin_url ?? '',
+        websiteUrl: p?.website_url ?? '',
+      },
 
-            roles: roleCodes,
-        },
+      roles: roleCodes,
+    },
 
-        stats: {
-            pointsTotal,
-            challengesDone,
-            ranking: ranking === 0 ? null : ranking,
-        },
+    stats: {
+      pointsTotal,
+      challengesDone,
+      ranking: ranking === 0 ? null : ranking,
+    },
 
-        progression: {
-            current: pointsTotal,
-            max: levelMax,
-            hint,
-        },
+    progression: {
+      current: pointsTotal,
+      max: levelMax,
+      hint,
+    },
 
-        follow: {
-            followersCount: followCounts.followers,
-            followingCount: followCounts.following,
-            isFollowing: false, // not applicable for own profile
-        },
+    follow: {
+      followersCount: followCounts.followers,
+      followingCount: followCounts.following,
+      isFollowing: false, // not applicable for own profile
+    },
 
-        badges: badgeRows.map((b) => ({
-            title: b.title,
-            description: b.description,
-            icon: b.icon,
-            unlocked: b.unlocked,
-        })),
+    badges: badgeRows.map((b) => ({
+      title: b.title,
+      description: b.description,
+      icon: b.icon,
+      unlocked: b.unlocked,
+    })),
 
-        recentActivity: activityRows.map((a) => ({
-            icon: a.icon ?? "◎",
-            title: a.title,
-            meta: a.meta ?? "",
-            points: a.points ?? undefined,
-            createdAt: a.created_at,
-        })),
-    };
+    recentActivity: activityRows.map((a) => ({
+      icon: a.icon ?? '◎',
+      title: a.title,
+      meta: a.meta ?? '',
+      points: a.points ?? undefined,
+      createdAt: a.created_at,
+    })),
+  };
 }
 
 export async function patchMyProfile(userId: string, patch: ProfilePatch) {
-    // ---- normalize ----
-    const dn = patch.displayName !== undefined ? String(patch.displayName).trim() : undefined;
+  // ---- normalize ----
+  const dn =
+    patch.displayName !== undefined
+      ? String(patch.displayName).trim()
+      : undefined;
 
-    const firstName = patch.firstName !== undefined ? String(patch.firstName).trim() : undefined;
-    const lastName = patch.lastName !== undefined ? String(patch.lastName).trim() : undefined;
-    const lastNameVisibility = patch.lastNameVisibility;
+  const firstName =
+    patch.firstName !== undefined ? String(patch.firstName).trim() : undefined;
+  const lastName =
+    patch.lastName !== undefined ? String(patch.lastName).trim() : undefined;
+  const lastNameVisibility = patch.lastNameVisibility;
 
-    const bio = patch.bio !== undefined ? String(patch.bio) : undefined;
-    const city = patch.city !== undefined ? String(patch.city).trim() : undefined;
-    const schoolLine = patch.schoolLine !== undefined ? String(patch.schoolLine).trim() : undefined;
-    const sinceDate = patch.sinceDate !== undefined ? String(patch.sinceDate).trim() : undefined;
+  const bio = patch.bio !== undefined ? String(patch.bio) : undefined;
+  const city = patch.city !== undefined ? String(patch.city).trim() : undefined;
+  const schoolLine =
+    patch.schoolLine !== undefined
+      ? String(patch.schoolLine).trim()
+      : undefined;
+  const sinceDate =
+    patch.sinceDate !== undefined ? String(patch.sinceDate).trim() : undefined;
 
-    const avatarText = patch.avatarText !== undefined ? String(patch.avatarText).trim() : undefined;
-    const avatarUrl = patch.avatarUrl !== undefined ? (patch.avatarUrl ? String(patch.avatarUrl) : null) : undefined;
+  const avatarText =
+    patch.avatarText !== undefined
+      ? String(patch.avatarText).trim()
+      : undefined;
+  const avatarUrl =
+    patch.avatarUrl !== undefined
+      ? patch.avatarUrl
+        ? String(patch.avatarUrl)
+        : null
+      : undefined;
 
-    const birthDate = patch.birthDate !== undefined ? (patch.birthDate ? String(patch.birthDate).trim() : "") : undefined;
+  const birthDate =
+    patch.birthDate !== undefined
+      ? patch.birthDate
+        ? String(patch.birthDate).trim()
+        : ''
+      : undefined;
 
-    const showEmail = patch.showEmail;
-    const showBirthDate = patch.showBirthDate;
-    const showAge = patch.showAge;
+  const showEmail = patch.showEmail;
+  const showBirthDate = patch.showBirthDate;
+  const showAge = patch.showAge;
 
-    const profileVisibility = patch.profileVisibility;
+  const profileVisibility = patch.profileVisibility;
 
-    const showSocials = patch.showSocials;
-    const instagramHandle = patch.instagramHandle !== undefined ? String(patch.instagramHandle).trim() : undefined;
-    const linkedinUrl = patch.linkedinUrl !== undefined ? String(patch.linkedinUrl).trim() : undefined;
-    const websiteUrl = patch.websiteUrl !== undefined ? String(patch.websiteUrl).trim() : undefined;
+  const showSocials = patch.showSocials;
+  const instagramHandle =
+    patch.instagramHandle !== undefined
+      ? String(patch.instagramHandle).trim()
+      : undefined;
+  const linkedinUrl =
+    patch.linkedinUrl !== undefined
+      ? String(patch.linkedinUrl).trim()
+      : undefined;
+  const websiteUrl =
+    patch.websiteUrl !== undefined
+      ? String(patch.websiteUrl).trim()
+      : undefined;
 
-    // ---- validations (align with front) ----
-    if (dn !== undefined) {
-        if (dn.length < 2) throw new Error("displayName too short");
-        if (dn.length > 40) throw new Error("displayName too long");
-    }
+  // ---- validations (align with front) ----
+  if (dn !== undefined) {
+    if (dn.length < 2) throw new Error('displayName too short');
+    if (dn.length > 40) throw new Error('displayName too long');
+  }
 
-    if (firstName !== undefined && firstName.length > 40) throw new Error("firstName too long");
-    if (lastName !== undefined && lastName.length > 40) throw new Error("lastName too long");
+  if (firstName !== undefined && firstName.length > 40)
+    throw new Error('firstName too long');
+  if (lastName !== undefined && lastName.length > 40)
+    throw new Error('lastName too long');
 
-    if (bio !== undefined && bio.length > 280) throw new Error("bio too long");
-    if (city !== undefined && city.length > 60) throw new Error("city too long");
-    if (schoolLine !== undefined && schoolLine.length > 80) throw new Error("schoolLine too long");
+  if (bio !== undefined && bio.length > 280) throw new Error('bio too long');
+  if (city !== undefined && city.length > 60) throw new Error('city too long');
+  if (schoolLine !== undefined && schoolLine.length > 80)
+    throw new Error('schoolLine too long');
 
-    if (sinceDate !== undefined && sinceDate !== "" && !isValidSinceDate(sinceDate)) throw new Error("sinceDate invalid");
+  if (
+    sinceDate !== undefined &&
+    sinceDate !== '' &&
+    !isValidSinceDate(sinceDate)
+  )
+    throw new Error('sinceDate invalid');
 
-    if (avatarText !== undefined && avatarText !== "" && avatarText.length > 3) throw new Error("avatarText too long");
+  if (avatarText !== undefined && avatarText !== '' && avatarText.length > 3)
+    throw new Error('avatarText too long');
 
-    if (birthDate !== undefined && birthDate !== "" && !isValidBirthDate(birthDate)) throw new Error("birthDate invalid");
+  if (
+    birthDate !== undefined &&
+    birthDate !== '' &&
+    !isValidBirthDate(birthDate)
+  )
+    throw new Error('birthDate invalid');
 
-    if (instagramHandle !== undefined && instagramHandle.length > 50) throw new Error("instagramHandle too long");
-    if (linkedinUrl !== undefined && linkedinUrl.length > 200) throw new Error("linkedinUrl too long");
-    if (websiteUrl !== undefined && websiteUrl.length > 200) throw new Error("websiteUrl too long");
+  if (instagramHandle !== undefined && instagramHandle.length > 50)
+    throw new Error('instagramHandle too long');
+  if (linkedinUrl !== undefined && linkedinUrl.length > 200)
+    throw new Error('linkedinUrl too long');
+  if (websiteUrl !== undefined && websiteUrl.length > 200)
+    throw new Error('websiteUrl too long');
 
-    if (lastNameVisibility !== undefined && !["FULL", "INITIAL", "HIDDEN"].includes(lastNameVisibility))
-        throw new Error("lastNameVisibility invalid");
+  if (
+    lastNameVisibility !== undefined &&
+    !['FULL', 'INITIAL', 'HIDDEN'].includes(lastNameVisibility)
+  )
+    throw new Error('lastNameVisibility invalid');
 
-    if (profileVisibility !== undefined && !["CAMPUS", "PRIVATE"].includes(profileVisibility))
-        throw new Error("profileVisibility invalid");
+  if (
+    profileVisibility !== undefined &&
+    !['CAMPUS', 'PRIVATE'].includes(profileVisibility)
+  )
+    throw new Error('profileVisibility invalid');
 
-    // ---- update users ----
-    if (dn !== undefined) {
-        await query(`update users set display_name=$2, updated_at=now() where id=$1`, [userId, dn]);
-    }
+  // ---- update users ----
+  if (dn !== undefined) {
+    await query(
+      `update users set display_name=$2, updated_at=now() where id=$1`,
+      [userId, dn],
+    );
+  }
 
-    // ---- upsert user_profile (all fields) ----
-    const hasAnyProfileField =
-        firstName !== undefined ||
-        lastName !== undefined ||
-        lastNameVisibility !== undefined ||
-        bio !== undefined ||
-        city !== undefined ||
-        schoolLine !== undefined ||
-        sinceDate !== undefined ||
-        avatarText !== undefined ||
-        avatarUrl !== undefined ||
-        birthDate !== undefined ||
-        showEmail !== undefined ||
-        showBirthDate !== undefined ||
-        showAge !== undefined ||
-        profileVisibility !== undefined ||
-        showSocials !== undefined ||
-        instagramHandle !== undefined ||
-        linkedinUrl !== undefined ||
-        websiteUrl !== undefined;
+  // ---- upsert user_profile (all fields) ----
+  const hasAnyProfileField =
+    firstName !== undefined ||
+    lastName !== undefined ||
+    lastNameVisibility !== undefined ||
+    bio !== undefined ||
+    city !== undefined ||
+    schoolLine !== undefined ||
+    sinceDate !== undefined ||
+    avatarText !== undefined ||
+    avatarUrl !== undefined ||
+    birthDate !== undefined ||
+    showEmail !== undefined ||
+    showBirthDate !== undefined ||
+    showAge !== undefined ||
+    profileVisibility !== undefined ||
+    showSocials !== undefined ||
+    instagramHandle !== undefined ||
+    linkedinUrl !== undefined ||
+    websiteUrl !== undefined;
 
-    if (hasAnyProfileField) {
-        // convention: "" => NULL (efface)
-        const birthDateDb = birthDate === undefined ? null : (birthDate === "" ? null : birthDate);
+  if (hasAnyProfileField) {
+    // convention: "" => NULL (efface)
+    const birthDateDb =
+      birthDate === undefined ? null : birthDate === '' ? null : birthDate;
 
-        await query(
-            `
+    await query(
+      `
       insert into user_profile(
         user_id,
         first_name, last_name, last_name_visibility,
@@ -402,102 +469,103 @@ export async function patchMyProfile(userId: string, patch: ProfilePatch) {
 
         updated_at = now()
       `,
-            [
-                userId,
+      [
+        userId,
 
-                emptyToNull(firstName),
-                emptyToNull(lastName),
-                lastNameVisibility ?? null,
+        emptyToNull(firstName),
+        emptyToNull(lastName),
+        lastNameVisibility ?? null,
 
-                emptyToNull(bio),
-                emptyToNull(city),
-                emptyToNull(schoolLine),
-                emptyToNull(sinceDate),
+        emptyToNull(bio),
+        emptyToNull(city),
+        emptyToNull(schoolLine),
+        emptyToNull(sinceDate),
 
-                emptyToNull(avatarText),
-                avatarUrl === undefined ? null : avatarUrl, // null allowed for removing image
+        emptyToNull(avatarText),
+        avatarUrl === undefined ? null : avatarUrl, // null allowed for removing image
 
-                birthDateDb,
+        birthDateDb,
 
-                showEmail ?? null,
-                showBirthDate ?? null,
-                showAge ?? null,
+        showEmail ?? null,
+        showBirthDate ?? null,
+        showAge ?? null,
 
-                profileVisibility ?? null,
+        profileVisibility ?? null,
 
-                showSocials ?? null,
-                emptyToNull(instagramHandle),
-                emptyToNull(linkedinUrl),
-                emptyToNull(websiteUrl),
+        showSocials ?? null,
+        emptyToNull(instagramHandle),
+        emptyToNull(linkedinUrl),
+        emptyToNull(websiteUrl),
 
-                birthDate !== undefined,
-                showEmail !== undefined,
-                showBirthDate !== undefined,
-                showAge !== undefined,
-                profileVisibility !== undefined,
-                showSocials !== undefined,
-                lastNameVisibility !== undefined,
-            ]
-        );
-    }
+        birthDate !== undefined,
+        showEmail !== undefined,
+        showBirthDate !== undefined,
+        showAge !== undefined,
+        profileVisibility !== undefined,
+        showSocials !== undefined,
+        lastNameVisibility !== undefined,
+      ],
+    );
+  }
 
-    return await getMyProfile(userId);
+  return await getMyProfile(userId);
 }
 
 async function getFollowCounts(userId: string) {
-    const rows = await query<{ followers: number; following: number }>(
-        `
+  const rows = await query<{ followers: number; following: number }>(
+    `
     select
       (select count(*)::int from user_follows where followed_user_id = $1) as followers,
       (select count(*)::int from user_follows where follower_user_id = $1) as following
     `,
-        [userId]
-    );
-    return rows[0] ?? { followers: 0, following: 0 };
+    [userId],
+  );
+  return rows[0] ?? { followers: 0, following: 0 };
 }
 
 async function isFollowing(viewerId: string, targetId: string) {
-    const rows = await query<{ ok: boolean }>(
-        `select true as ok from user_follows where follower_user_id=$1 and followed_user_id=$2 limit 1`,
-        [viewerId, targetId]
-    );
-    return rows.length > 0;
+  const rows = await query<{ ok: boolean }>(
+    `select true as ok from user_follows where follower_user_id=$1 and followed_user_id=$2 limit 1`,
+    [viewerId, targetId],
+  );
+  return rows.length > 0;
 }
 
 export async function followUser(followerId: string, followedId: string) {
-    if (followerId === followedId) throw new Error("Tu ne peux pas te suivre toi-même");
+  if (followerId === followedId)
+    throw new Error('Tu ne peux pas te suivre toi-même');
 
-    await query(
-        `
+  await query(
+    `
     insert into user_follows (follower_user_id, followed_user_id)
     values ($1, $2)
     on conflict do nothing
     `,
-        [followerId, followedId]
-    );
+    [followerId, followedId],
+  );
 
-    const counts = await getFollowCounts(followedId);
-    return { followedId, followersCount: counts.followers };
+  const counts = await getFollowCounts(followedId);
+  return { followedId, followersCount: counts.followers };
 }
 
 export async function unfollowUser(followerId: string, followedId: string) {
-    await query(
-        `delete from user_follows where follower_user_id=$1 and followed_user_id=$2`,
-        [followerId, followedId]
-    );
+  await query(
+    `delete from user_follows where follower_user_id=$1 and followed_user_id=$2`,
+    [followerId, followedId],
+  );
 
-    const counts = await getFollowCounts(followedId);
-    return { followedId, followersCount: counts.followers };
+  const counts = await getFollowCounts(followedId);
+  return { followedId, followersCount: counts.followers };
 }
 
 export async function listMyFollowing(userId: string) {
-    const rows = await query<{
-        id: string;
-        display_name: string;
-        avatar_url: string | null;
-        avatar_text: string | null;
-    }>(
-        `
+  const rows = await query<{
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+    avatar_text: string | null;
+  }>(
+    `
     select u.id, u.display_name, up.avatar_url, up.avatar_text
     from user_follows f
     join users u on u.id = f.followed_user_id
@@ -506,25 +574,25 @@ export async function listMyFollowing(userId: string) {
     order by f.created_at desc
     limit 200
     `,
-        [userId]
-    );
+    [userId],
+  );
 
-    return rows.map(r => ({
-        id: r.id,
-        displayName: r.display_name,
-        avatarUrl: r.avatar_url ?? null,
-        avatarText: r.avatar_text ?? "",
-    }));
+  return rows.map((r) => ({
+    id: r.id,
+    displayName: r.display_name,
+    avatarUrl: r.avatar_url ?? null,
+    avatarText: r.avatar_text ?? '',
+  }));
 }
 
 export async function listMyFollowers(userId: string) {
-    const rows = await query<{
-        id: string;
-        display_name: string;
-        avatar_url: string | null;
-        avatar_text: string | null;
-    }>(
-        `
+  const rows = await query<{
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+    avatar_text: string | null;
+  }>(
+    `
     select u.id, u.display_name, up.avatar_url, up.avatar_text
     from user_follows f
     join users u on u.id = f.follower_user_id
@@ -533,36 +601,41 @@ export async function listMyFollowers(userId: string) {
     order by f.created_at desc
     limit 200
     `,
-        [userId]
-    );
+    [userId],
+  );
 
-    return rows.map(r => ({
-        id: r.id,
-        displayName: r.display_name,
-        avatarUrl: r.avatar_url ?? null,
-        avatarText: r.avatar_text ?? "",
-    }));
+  return rows.map((r) => ({
+    id: r.id,
+    displayName: r.display_name,
+    avatarUrl: r.avatar_url ?? null,
+    avatarText: r.avatar_text ?? '',
+  }));
 }
 
-export async function searchProfiles(viewerId: string, q: string, limit = 20, offset = 0) {
-    const needle = `%${q.replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
+export async function searchProfiles(
+  viewerId: string,
+  q: string,
+  limit = 20,
+  offset = 0,
+) {
+  const needle = `%${q.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
 
-    // ✅ On ne renvoie que des profils "CAMPUS" + soi-même
-    // ✅ isFollowing inclus (utile bouton)
-    const rows = await query<{
-        id: string;
-        display_name: string;
-        first_name: string | null;
-        last_name: string | null;
-        last_name_visibility: "FULL" | "INITIAL" | "HIDDEN";
-        avatar_url: string | null;
-        avatar_text: string | null;
-        city: string | null;
-        school_line: string | null;
-        profile_visibility: "CAMPUS" | "PRIVATE";
-        is_following: boolean;
-    }>(
-        `
+  // ✅ On ne renvoie que des profils "CAMPUS" + soi-même
+  // ✅ isFollowing inclus (utile bouton)
+  const rows = await query<{
+    id: string;
+    display_name: string;
+    first_name: string | null;
+    last_name: string | null;
+    last_name_visibility: 'FULL' | 'INITIAL' | 'HIDDEN';
+    avatar_url: string | null;
+    avatar_text: string | null;
+    city: string | null;
+    school_line: string | null;
+    profile_visibility: 'CAMPUS' | 'PRIVATE';
+    is_following: boolean;
+  }>(
+    `
     select
       u.id,
       u.display_name,
@@ -595,11 +668,11 @@ export async function searchProfiles(viewerId: string, q: string, limit = 20, of
       u.display_name asc
     limit $3 offset $4
     `,
-        [viewerId, needle, limit, offset]
-    );
+    [viewerId, needle, limit, offset],
+  );
 
-    const totalRows = await query<{ total: number }>(
-        `
+  const totalRows = await query<{ total: number }>(
+    `
     select count(*)::int as total
     from users u
     left join user_profile up on up.user_id = u.id
@@ -614,25 +687,25 @@ export async function searchProfiles(viewerId: string, q: string, limit = 20, of
         or u.id = $1
       )
     `,
-        [viewerId, needle]
-    );
+    [viewerId, needle],
+  );
 
-    return {
-        items: rows.map(r => ({
-            id: r.id,
-            displayName: r.display_name,
-            firstName: r.first_name ?? "",
-            lastName: r.last_name ?? "",
-            lastNameVisibility: r.last_name_visibility ?? "FULL",
-            avatarUrl: r.avatar_url ?? null,
-            avatarText: r.avatar_text ?? "",
-            city: r.city ?? "",
-            schoolLine: r.school_line ?? "",
-            profileVisibility: r.profile_visibility ?? "CAMPUS",
-            isFollowing: r.is_following,
-        })),
-        total: totalRows[0]?.total ?? 0,
-    };
+  return {
+    items: rows.map((r) => ({
+      id: r.id,
+      displayName: r.display_name,
+      firstName: r.first_name ?? '',
+      lastName: r.last_name ?? '',
+      lastNameVisibility: r.last_name_visibility ?? 'FULL',
+      avatarUrl: r.avatar_url ?? null,
+      avatarText: r.avatar_text ?? '',
+      city: r.city ?? '',
+      schoolLine: r.school_line ?? '',
+      profileVisibility: r.profile_visibility ?? 'CAMPUS',
+      isFollowing: r.is_following,
+    })),
+    total: totalRows[0]?.total ?? 0,
+  };
 }
 
 /**
@@ -640,39 +713,40 @@ export async function searchProfiles(viewerId: string, q: string, limit = 20, of
  * Respect de profileVisibility
  */
 export async function getProfileById(viewerId: string, targetId: string) {
-    const users = await query<{ id: string; email: string; display_name: string }>(
-        `select id, email, display_name from users where id = $1`,
-        [targetId]
-    );
-    const u = users[0];
-    if (!u) throw new Error("User not found");
+  const users = await query<{
+    id: string;
+    email: string;
+    display_name: string;
+  }>(`select id, email, display_name from users where id = $1`, [targetId]);
+  const u = users[0];
+  if (!u) throw new Error('User not found');
 
-    const profRows = await query<{
-        bio: string | null;
-        city: string | null;
-        school_line: string | null;
-        since_date: string | null;
+  const profRows = await query<{
+    bio: string | null;
+    city: string | null;
+    school_line: string | null;
+    since_date: string | null;
 
-        avatar_text: string | null;
-        avatar_url: string | null;
+    avatar_text: string | null;
+    avatar_url: string | null;
 
-        first_name: string | null;
-        last_name: string | null;
-        birth_date: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    birth_date: string | null;
 
-        show_email: boolean;
-        show_birth_date: boolean;
-        show_age: boolean;
+    show_email: boolean;
+    show_birth_date: boolean;
+    show_age: boolean;
 
-        last_name_visibility: LastNameVisibility;
-        profile_visibility: ProfileVisibility;
+    last_name_visibility: LastNameVisibility;
+    profile_visibility: ProfileVisibility;
 
-        instagram_handle: string | null;
-        linkedin_url: string | null;
-        website_url: string | null;
-        show_socials: boolean;
-    }>(
-        `
+    instagram_handle: string | null;
+    linkedin_url: string | null;
+    website_url: string | null;
+    show_socials: boolean;
+  }>(
+    `
     select
       bio, city, school_line, since_date,
       avatar_text, avatar_url,
@@ -683,138 +757,142 @@ export async function getProfileById(viewerId: string, targetId: string) {
     from user_profile
     where user_id = $1
     `,
-        [targetId]
-    );
-    const p = profRows[0] ?? null;
+    [targetId],
+  );
+  const p = profRows[0] ?? null;
 
-    const visibility = p?.profile_visibility ?? "CAMPUS";
-    if (visibility === "PRIVATE" && viewerId !== targetId) {
-        const err: any = new Error("Profil privé");
-        err.status = 403;
-        throw err;
-    }
+  const visibility = p?.profile_visibility ?? 'CAMPUS';
+  if (visibility === 'PRIVATE' && viewerId !== targetId) {
+    const err: any = new Error('Profil privé');
+    err.status = 403;
+    throw err;
+  }
 
-    // follows counts + isFollowing
-    const [followersRow] = await query<{ c: number }>(
-        `select count(*)::int as c from user_follows where followed_user_id = $1`,
-        [targetId]
-    );
-    const [followingRow] = await query<{ c: number }>(
-        `select count(*)::int as c from user_follows where follower_user_id = $1`,
-        [targetId]
-    );
+  // follows counts + isFollowing
+  const [followersRow] = await query<{ c: number }>(
+    `select count(*)::int as c from user_follows where followed_user_id = $1`,
+    [targetId],
+  );
+  const [followingRow] = await query<{ c: number }>(
+    `select count(*)::int as c from user_follows where follower_user_id = $1`,
+    [targetId],
+  );
 
-    const isFollowing =
-        viewerId === targetId
-            ? false
-            : !!(await query<{ ok: boolean }>(
-                `select true as ok from user_follows where follower_user_id=$1 and followed_user_id=$2 limit 1`,
-                [viewerId, targetId]
-            ))[0];
+  const isFollowing =
+    viewerId === targetId
+      ? false
+      : !!(
+          await query<{ ok: boolean }>(
+            `select true as ok from user_follows where follower_user_id=$1 and followed_user_id=$2 limit 1`,
+            [viewerId, targetId],
+          )
+        )[0];
 
-    const age = computeAge(p?.birth_date ?? null);
+  const age = computeAge(p?.birth_date ?? null);
 
-    return {
-        identity: {
-            id: u.id,
-            email: u.email,
-            displayName: u.display_name,
+  return {
+    identity: {
+      id: u.id,
+      email: u.email,
+      displayName: u.display_name,
 
-            firstName: p?.first_name ?? "",
-            lastName: p?.last_name ?? "",
-            lastNameVisibility: p?.last_name_visibility ?? "FULL",
+      firstName: p?.first_name ?? '',
+      lastName: p?.last_name ?? '',
+      lastNameVisibility: p?.last_name_visibility ?? 'FULL',
 
-            bio: p?.bio ?? "",
-            city: p?.city ?? "",
-            schoolLine: p?.school_line ?? "",
-            sinceDate: p?.since_date ?? null,
+      bio: p?.bio ?? '',
+      city: p?.city ?? '',
+      schoolLine: p?.school_line ?? '',
+      sinceDate: p?.since_date ?? null,
 
-            avatarText: p?.avatar_text ?? "",
-            avatarUrl: p?.avatar_url ?? null,
+      avatarText: p?.avatar_text ?? '',
+      avatarUrl: p?.avatar_url ?? null,
 
-            showEmail: p?.show_email ?? false,
-            showAge: p?.show_age ?? false,
-            age,
+      showEmail: p?.show_email ?? false,
+      showAge: p?.show_age ?? false,
+      age,
 
-            profileVisibility: visibility,
+      profileVisibility: visibility,
 
-            socials: {
-                show: p?.show_socials ?? true,
-                instagramHandle: p?.instagram_handle ?? "",
-                linkedinUrl: p?.linkedin_url ?? "",
-                websiteUrl: p?.website_url ?? "",
-            },
-        },
-        follow: {
-            followersCount: followersRow?.c ?? 0,
-            followingCount: followingRow?.c ?? 0,
-            isFollowing,
-        },
-    };
+      socials: {
+        show: p?.show_socials ?? true,
+        instagramHandle: p?.instagram_handle ?? '',
+        linkedinUrl: p?.linkedin_url ?? '',
+        websiteUrl: p?.website_url ?? '',
+      },
+    },
+    follow: {
+      followersCount: followersRow?.c ?? 0,
+      followingCount: followingRow?.c ?? 0,
+      isFollowing,
+    },
+  };
 }
 
 export async function getFullProfile(viewerId: string, targetId: string) {
-    // 1) récupérer le profil complet du target (réutilise ta logique)
-    const data = await getMyProfile(targetId);
+  // 1) récupérer le profil complet du target (réutilise ta logique)
+  const data = await getMyProfile(targetId);
 
-    // 2) gérer la visibilité PRIVATE
-    const visibility = data.identity.profileVisibility ?? "CAMPUS";
-    if (visibility === "PRIVATE" && viewerId !== targetId) {
-        const err: any = new Error("Profil privé");
-        err.status = 403;
-        throw err;
-    }
+  // 2) gérer la visibilité PRIVATE
+  const visibility = data.identity.profileVisibility ?? 'CAMPUS';
+  if (visibility === 'PRIVATE' && viewerId !== targetId) {
+    const err: any = new Error('Profil privé');
+    err.status = 403;
+    throw err;
+  }
 
-    // 3) cacher l’email si l’utilisateur n’a pas autorisé (et si viewer != owner)
-    if (viewerId !== targetId && !data.identity.showEmail) {
-        data.identity.email = ""; // ou null si tu préfères
-    }
+  // 3) cacher l’email si l’utilisateur n’a pas autorisé (et si viewer != owner)
+  if (viewerId !== targetId && !data.identity.showEmail) {
+    data.identity.email = ''; // ou null si tu préfères
+  }
 
-    // 4) follow counts + isFollowing (table user_follows)
-    const [followersRow] = await query<{ c: number }>(
-        `select count(*)::int as c from user_follows where followed_user_id = $1`,
-        [targetId]
-    );
-    const [followingRow] = await query<{ c: number }>(
-        `select count(*)::int as c from user_follows where follower_user_id = $1`,
-        [targetId]
-    );
+  // 4) follow counts + isFollowing (table user_follows)
+  const [followersRow] = await query<{ c: number }>(
+    `select count(*)::int as c from user_follows where followed_user_id = $1`,
+    [targetId],
+  );
+  const [followingRow] = await query<{ c: number }>(
+    `select count(*)::int as c from user_follows where follower_user_id = $1`,
+    [targetId],
+  );
 
-    const isFollowing =
-        viewerId === targetId
-            ? false
-            : !!(await query<{ ok: boolean }>(
-                `select true as ok from user_follows where follower_user_id=$1 and followed_user_id=$2 limit 1`,
-                [viewerId, targetId]
-            ))[0];
+  const isFollowing =
+    viewerId === targetId
+      ? false
+      : !!(
+          await query<{ ok: boolean }>(
+            `select true as ok from user_follows where follower_user_id=$1 and followed_user_id=$2 limit 1`,
+            [viewerId, targetId],
+          )
+        )[0];
 
-    return {
-        ...data,
-        follow: {
-            followersCount: followersRow?.c ?? 0,
-            followingCount: followingRow?.c ?? 0,
-            isFollowing,
-        },
-    };
+  return {
+    ...data,
+    follow: {
+      followersCount: followersRow?.c ?? 0,
+      followingCount: followingRow?.c ?? 0,
+      isFollowing,
+    },
+  };
 }
 
 function emptyToNull(v: string | undefined) {
-    if (v === undefined) return null;
-    const s = String(v);
-    return s.trim() === "" ? null : s;
+  if (v === undefined) return null;
+  const s = String(v);
+  return s.trim() === '' ? null : s;
 }
 
 export async function setMyAvatarUrl(userId: string, avatarUrl: string | null) {
-    await query(
-        `
+  await query(
+    `
     insert into user_profile(user_id, avatar_url)
     values($1, $2)
     on conflict (user_id) do update set
       avatar_url = excluded.avatar_url,
       updated_at = now()
     `,
-        [userId, avatarUrl]
-    );
+    [userId, avatarUrl],
+  );
 
-    return await getMyProfile(userId);
+  return await getMyProfile(userId);
 }

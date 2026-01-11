@@ -18,6 +18,7 @@ type RegisterBody = {
     email: string;
     password: string;
     displayName: string;
+    campusId?: string | null;
 };
 
 type LoginBody = {

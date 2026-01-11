@@ -75,6 +75,7 @@ const profileVisibility = ref<ProfileVisibility>("CAMPUS");
 
 const avatarText = ref("");
 const avatarUrl = ref<string | null>(null);
+const avatarInputRef = ref<HTMLInputElement | null>(null);
 
 const schoolLine = ref("");
 const city = ref("");
@@ -147,6 +148,10 @@ async function fetchMe() {
 
 function cancel() {
   router.push("/app/profile");
+}
+
+function triggerAvatarInput() {
+  avatarInputRef.value?.click();
 }
 
 function localValidate(): string | null {
@@ -332,18 +337,23 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+<div style="flex:1; display:flex; flex-direction:column; gap:8px;">
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <label style="display:inline-block;">
-                <input type="file" accept="image/png,image/jpeg,image/webp" @change="onPickAvatar" style="display:none" />
-                <span
-                    style="display:inline-flex; align-items:center; justify-content:center; height:38px; padding:0 12px;
-                    border-radius:12px; border:1px solid rgba(0,0,0,0.12); background:#fff; cursor:pointer; font-weight:900;"
-                    @click="($event.currentTarget as HTMLElement).previousElementSibling?.dispatchEvent(new MouseEvent('click'))"
-                >
-                  {{ uploading ? "Upload..." : "📷 Changer l’avatar" }}
-                </span>
-              </label>
+              <input
+                ref="avatarInputRef"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                @change="onPickAvatar"
+                style="display:none"
+              />
+              <button
+                  type="button"
+                  @click="triggerAvatarInput"
+                  style="display:inline-flex; align-items:center; justify-content:center; height:38px; padding:0 12px;
+                  border-radius:12px; border:1px solid rgba(0,0,0,0.12); background:#fff; cursor:pointer; font-weight:900;"
+              >
+                {{ uploading ? "Upload..." : "📷 Changer l'avatar" }}
+              </button>
 
               <button
                   type="button"

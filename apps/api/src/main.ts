@@ -1,39 +1,48 @@
-import express from "express";
-import cors from "cors";
+import express from 'express';
+import cors from 'cors';
 
-import { authRouter } from "./auth/auth.routes";
-import { meRouter } from "./me/me.routes";
-import { authJwt } from "./auth/auth.middleware";
-import { requirePerm } from "./auth/requirePerm";
-import { adminRouter } from "./admin/admin.routes";
-import { challengesRouter } from "./challenges/challenges.routes";
-import { profileRouter } from "./profile/profile.routes";
-import { usersRouter } from "./users/users.routes";
-import path from "path";
+import { authRouter } from './auth/auth.routes';
+import { meRouter } from './me/me.routes';
+import { authJwt } from './auth/auth.middleware';
+import { requirePerm } from './auth/requirePerm';
+import { adminRouter } from './admin/admin.routes';
+import { challengesRouter } from './challenges/challenges.routes';
+import { profileRouter } from './profile/profile.routes';
+import { usersRouter } from './users/users.routes';
+import { feedRouter } from './feed/feed.routes';
+import { publicationsRouter } from './publications/publications.routes';
+import path from 'path';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get('/health', (_req, res) => res.json({ ok: true }));
 
-app.use("/auth", authRouter);
-app.use("/me", meRouter);
+app.use('/auth', authRouter);
+app.use('/me', meRouter);
 
-app.use("/admin", adminRouter);
+app.use('/admin', adminRouter);
 
-app.use("/challenges", challengesRouter);
+app.use('/feed', feedRouter);
+app.use('/publications', publicationsRouter);
+app.use('/challenges', challengesRouter);
 
-app.use("/profile", profileRouter);
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-app.use("/users", usersRouter);
+app.use('/profile', profileRouter);
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/users', usersRouter);
 
-app.get("/debug/permissions", authJwt, requirePerm("publications:read"), (req, res) => {
-    res.json({ ok: true, message: "You can read publications" });
-});
+app.get(
+  '/debug/permissions',
+  authJwt,
+  requirePerm('publications:read'),
+  (req, res) => {
+    res.json({ ok: true, message: 'You can read publications' });
+  },
+);
 
 const port = Number(process.env.PORT ?? 3000);
 app.listen(port, () => {
-    console.log(`[api] listening on http://localhost:${port}`);
+  console.log(`[api] listening on http://localhost:${port}`);
 });

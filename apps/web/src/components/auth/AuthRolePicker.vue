@@ -15,7 +15,7 @@ const emit = defineEmits<{
   <div class="wrap">
     <AuthRoleOptionCard
         title="Membre MediaSchool"
-        description="Accès complet à toutes les fonctionnalités"
+        description="Accès complet à l'application"
         :selected="modelValue === 'mediaschool'"
         @select="emit('update:modelValue', 'mediaschool'); emit('select', 'mediaschool')"
     >
@@ -24,7 +24,7 @@ const emit = defineEmits<{
 
     <AuthRoleOptionCard
         title="Invité"
-        description="Accès à la carte et l'activité"
+        description="Accès restreint à l'application"
         :selected="modelValue === 'external'"
         @select="emit('update:modelValue', 'external'); emit('select', 'external')"
     >
